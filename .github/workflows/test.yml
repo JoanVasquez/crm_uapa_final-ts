@@ -1,42 +1,30 @@
-name: CI - Unit Tests
+name: Run Unit Tests
 
 on:
   push:
-    branches: ['master'] # or your master branch
+    branches:
+      - master
+      - develop
   pull_request:
-    branches: ['master'] # or whichever branches you want to test on PR
+    branches:
+      - master
+      - develop
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
-
     steps:
-      # 1) Check out your repository code
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # 2) Use a Node version (e.g., 16, 18, or LTS)
-      - name: Use Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
+          cache: 'npm'
 
-      # 3) Install dependencies
-      - name: Install dependencies
+      - name: Install Dependencies
         run: npm install
 
-      # 4) (Optional) Build step if your project requires a build
-      #    - e.g. "npm run build"
-      #      run: npm run build
-
-      # 5) Run unit tests
-      - name: Run tests
+      - name: Run Unit Tests
         run: npm test
-
-      # 6) (Optional) Upload coverage folder as an artifact
-      - name: Upload coverage artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: coverage
-          path: coverage
