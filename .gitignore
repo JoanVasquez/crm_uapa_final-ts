@@ -1,0 +1,51 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Logs
+logs/
+*.log
+*.log.*
+yarn.lock
+pnpm-lock.yaml
+
+# TypeScript build output
+dist/
+build/
+coverage/
+tsconfig.tsbuildinfo
+
+# Environment variables
+.env*
+!.env.example
+
+# VS Code settings (optional, for individual setups)
+.vscode/
+.history/
+
+# ESLint and Prettier cache
+.eslintcache
+.prettierignore
+.prettiercache
+
+# Husky hooks (installed locally, not required in repo)
+.husky/_
+
+# Miscellaneous
+.idea/           # JetBrains IDE settings
+*.swp            # Swap files (for editors like Vim)
+Thumbs.db        # Windows thumbnail cache
+.DS_Store        # macOS Finder metadata
+*.bak            # Backup files
+*.orig           # Merge conflict leftovers
+*.rej            # Patch reject files
+
+# Jest test coverage
+/coverage
+
+# TypeORM migrations (if generated)
+typeorm/migrations/
