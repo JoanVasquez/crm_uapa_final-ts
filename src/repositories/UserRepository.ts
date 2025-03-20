@@ -3,6 +3,7 @@ import { User } from '../models/User';
 import logger from '../utils/logger';
 import { GenericRepository } from './GenericRepository';
 import { inject, injectable } from 'tsyringe';
+import { BaseAppException } from '../errors/BaseAppException';
 
 /**
  * 📦 UserRepository - Handles database operations related to the `User` entity.
@@ -48,7 +49,9 @@ export class UserRepository extends GenericRepository<User> {
       });
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Error finding user by username: ${errorMessage}`);
+      throw new BaseAppException(
+        `Error finding user by username: ${errorMessage}`,
+      );
     }
   }
 }

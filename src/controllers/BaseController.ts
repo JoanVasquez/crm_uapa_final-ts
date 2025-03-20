@@ -11,7 +11,7 @@ import logger from '../utils/logger';
  * - Can be extended by specific controllers for different entities.
  */
 export default abstract class BaseController {
-  constructor(private readonly baseService: ICRUD<unknown>) {
+  constructor(protected readonly baseService: ICRUD<unknown>) {
     this.baseService = baseService;
   }
 

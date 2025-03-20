@@ -138,18 +138,35 @@ export abstract class GenericService<T> implements ICRUD<T> {
   }
 
   /**
-   * 📋 Retrieves all entities.
+   * 📋 Retrieves all entities with caching.
    * @returns A list of all entities.
    */
   async findAll(): Promise<T[]> {
     logger.info(
       `📋 [GenericService] Retrieving all entities for ${this.entityName}`,
     );
-    return await this.genericRepository.getAllEntities();
+
+    const cacheKey = `${this.entityName}:all`;
+    const cachedEntities = await this.cache.get(cacheKey);
+
+    if (cachedEntities) {
+      logger.info(
+        `✅ [GenericService] Retrieved all entities from cache: ${cacheKey}`,
+      );
+      return JSON.parse(cachedEntities);
+    }
+
+    const entities = await this.genericRepository.getAllEntities();
+    if (entities.length > 0) {
+      await this.cache.set(cacheKey, JSON.stringify(entities), 3600);
+      logger.info(`✅ [GenericService] Cached all entities: ${cacheKey}`);
+    }
+
+    return entities;
   }
 
   /**
-   * 📊 Retrieves entities with pagination.
+   * 📊 Retrieves entities with pagination and caching.
    * @param skip - Number of records to skip.
    * @param take - Number of records to retrieve.
    * @returns An object containing:
@@ -163,6 +180,26 @@ export abstract class GenericService<T> implements ICRUD<T> {
     logger.info(
       `📊 [GenericService] Fetching paginated entities: skip=${skip}, take=${take}`,
     );
-    return await this.genericRepository.getEntitiesWithPagination(skip, take);
+
+    const cacheKey = `${this.entityName}:pagination:skip=${skip}:take=${take}`;
+    const cachedData = await this.cache.get(cacheKey);
+
+    if (cachedData) {
+      logger.info(
+        `✅ [GenericService] Retrieved paginated data from cache: ${cacheKey}`,
+      );
+      return JSON.parse(cachedData);
+    }
+
+    const result = await this.genericRepository.getEntitiesWithPagination(
+      skip,
+      take,
+    );
+    if (result.data.length > 0) {
+      await this.cache.set(cacheKey, JSON.stringify(result), 3600);
+      logger.info(`✅ [GenericService] Cached paginated data: ${cacheKey}`);
+    }
+
+    return result;
   }
 }

@@ -9,11 +9,14 @@ import { getAppDataSource } from './config/database';
 
 // 🔄 Import dependencies (Repositories, Services, Interfaces)
 import { UserRepository } from './repositories/UserRepository';
+import { ProductRepository } from './repositories/ProductRepository';
 import { AuthenticationService } from './services/AuthenticationService';
 import { PasswordService } from './services/PasswordService';
 import { User } from './models/User';
+import { Product } from './models/Product';
 import { ICRUD } from './services/ICRUD';
 import { UserService } from './services/UserService';
+import { ProductService } from './services/ProductService';
 import { BaseAppException } from './errors/BaseAppException';
 
 /**
@@ -34,15 +37,21 @@ export async function registerDependencies(): Promise<void> {
     });
     logger.info('✅ [DI] DataSource registered successfully.');
 
-    // 📌 Register application services
+    // 📌 Register User-related services
     container.register('UserRepository', { useClass: UserRepository });
     container.register('AuthenticationService', {
       useClass: AuthenticationService,
     });
     container.register('PasswordService', { useClass: PasswordService });
 
-    // 📌 Register UserService with ICRUD<User> interface
+    // 📌 Register Product-related services
+    container.register('ProductRepository', { useClass: ProductRepository });
+
+    // 📌 Register Services with ICRUD Interface
     container.register<ICRUD<User>>('UserService', { useClass: UserService });
+    container.register<ICRUD<Product>>('ProductService', {
+      useClass: ProductService,
+    });
 
     logger.info('✅ [DI] All dependencies registered successfully.');
   } catch (error: unknown) {

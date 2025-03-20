@@ -11,7 +11,7 @@ import logger from '../utils/logger';
  */
 @autoInjectable()
 export default class UserController extends BaseController {
-  constructor(@inject('UserService') userService?: ICRUD<User>) {
+  constructor(@inject('UserService') protected userService?: ICRUD<User>) {
     super(userService!);
     logger.info('✅ [UserController] Initialized UserController');
 
