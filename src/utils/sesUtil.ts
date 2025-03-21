@@ -3,12 +3,23 @@ import {
   SendEmailCommand,
   SendEmailCommandInput,
 } from '@aws-sdk/client-ses';
+import logger from '../utils/logger';
 
 const region = process.env.AWS_REGION ?? 'us-east-1';
 const sesClient = new SESClient({ region });
-const confirmationURL = process.env.CRM_USER_CONFIRM_URL;
 
-async function sendEmail(emails: Array<string>): Promise<void> {
+/**
+ * 📧 sendEmail - Sends an HTML email using AWS SES.
+ *
+ * @param emails - Array of recipient email addresses
+ * @param subject - Email subject
+ * @param data - HTML content of the email
+ */
+async function sendEmail(
+  emails: Array<string>,
+  subject: string,
+  data: string,
+): Promise<void> {
   const params: SendEmailCommandInput = {
     Destination: {
       ToAddresses: emails,
@@ -16,18 +27,11 @@ async function sendEmail(emails: Array<string>): Promise<void> {
     Message: {
       Body: {
         Html: {
-          Data: `
-            <div>
-                <p>
-                    Please confirm your account for the CRM UAPA
-                </p>
-                <a href="${confirmationURL}">${confirmationURL}</a>
-            </div>
-          `,
+          Data: data,
         },
       },
       Subject: {
-        Data: 'Confirm yor CRM UAPA account',
+        Data: subject,
       },
     },
     Source: 'dev.joanvasquez@gmail.com',
@@ -35,12 +39,19 @@ async function sendEmail(emails: Array<string>): Promise<void> {
 
   try {
     const command: SendEmailCommand = new SendEmailCommand(params);
-    const data = await sesClient.send(command);
-    // eslint-disable-next-line
-    console.log('Email sent successfully! Message ID:', data.MessageId);
+    const result = await sesClient.send(command);
+
+    logger.info('📧 [sendEmail] Email sent successfully!', {
+      to: emails,
+      subject,
+      messageId: result.MessageId,
+    });
   } catch (error) {
-    // eslint-disable-next-line
-    console.error('Error sending email:', error);
+    logger.error('❌ [sendEmail] Error sending email:', {
+      to: emails,
+      subject,
+      error,
+    });
   }
 }
 

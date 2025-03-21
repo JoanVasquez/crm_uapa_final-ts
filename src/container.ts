@@ -18,6 +18,15 @@ import { ICRUD } from './services/ICRUD';
 import { UserService } from './services/UserService';
 import { ProductService } from './services/ProductService';
 import { BaseAppException } from './errors/BaseAppException';
+import { SellRepository } from './repositories/SellRepository';
+import { BillRepository } from './repositories/BillRepository';
+import { CustomerRepository } from './repositories/CustomerRepository';
+import { BillService } from './services/BillService';
+import { Bill } from './models/Bill';
+import { Customer } from './models/Customer';
+import { CustomerService } from './services/CustomerService';
+import { Sell } from './models/Sell';
+import { SellService } from './services/SellService';
 
 /**
  * 🏗️ Registers all dependencies into the tsyringe container.
@@ -37,20 +46,34 @@ export async function registerDependencies(): Promise<void> {
     });
     logger.info('✅ [DI] DataSource registered successfully.');
 
-    // 📌 Register User-related services
+    // 📌 Register Repositories
     container.register('UserRepository', { useClass: UserRepository });
+    container.register('SellRepository', { useClass: SellRepository });
+    container.register('BillRepository', { useClass: BillRepository });
+    container.register('CustomerRepository', { useClass: CustomerRepository });
+    container.register('ProductRepository', { useClass: ProductRepository });
+
     container.register('AuthenticationService', {
       useClass: AuthenticationService,
     });
     container.register('PasswordService', { useClass: PasswordService });
 
-    // 📌 Register Product-related services
-    container.register('ProductRepository', { useClass: ProductRepository });
-
     // 📌 Register Services with ICRUD Interface
     container.register<ICRUD<User>>('UserService', { useClass: UserService });
+    container.register<ICRUD<Bill>>('BillService', { useClass: BillService });
+    container.register<ICRUD<Customer>>('CustomerService', {
+      useClass: CustomerService,
+    });
+    container.register<ICRUD<Sell>>('SellService', { useClass: SellService });
     container.register<ICRUD<Product>>('ProductService', {
       useClass: ProductService,
+    });
+    container.register('CustomerServiceImpl', {
+      useClass: CustomerService,
+    });
+
+    container.register('SellServiceImpl', {
+      useClass: SellService,
     });
 
     logger.info('✅ [DI] All dependencies registered successfully.');

@@ -22,7 +22,7 @@
     "@aws-sdk/client-cognito-identity-provider": "^3.768.0",
     "@aws-sdk/client-kms": "^3.758.0",
     "@aws-sdk/client-s3": "^3.758.0",
-    "@aws-sdk/client-ses": "^3.758.0",
+    "@aws-sdk/client-ses": "^3.772.0",
     "@aws-sdk/client-ssm": "^3.759.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",
