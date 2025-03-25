@@ -100,7 +100,7 @@ export async function getAppDataSource(): Promise<DataSource> {
         { error },
       );
     }
-    throw new BaseAppException('Database connection failed.');
+    throw new BaseAppException(`Database connection failed`);
   }
 
   return appDataSource;

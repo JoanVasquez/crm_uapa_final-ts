@@ -83,15 +83,15 @@ export const verifyToken = async (
 
     // ✅ Extract token from cookies or the Authorization header
     const authHeader = req.headers['authorization'];
-    const result =
+    const token =
       req.cookies.token || (authHeader ? authHeader.split(' ')[1] : null);
-    if (!result.token) {
+    if (!token) {
       logger.warn('⚠️ [Auth] No token provided');
       return next(new AuthError('Unauthorized: No token provided'));
     }
 
     // ✅ Verify the token using the JWKS client
-    jwt.verify(result.token, getKey, verifyOptions, (err, decoded) => {
+    jwt.verify(token, getKey, verifyOptions, (err, decoded) => {
       if (err) {
         logger.error('❌ [Auth] Token verification failed', err);
         return next(new AuthError('Invalid token'));

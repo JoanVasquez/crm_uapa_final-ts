@@ -31,8 +31,8 @@ export default class AuthController {
       const { username, password } = req.body;
       logger.info(`🔑 [AuthController] Login attempt for user: ${username}`);
 
-      const token = await this.userService?.authenticate(username, password);
-      res.cookie('token', token, {
+      const result = await this.userService?.authenticate(username, password);
+      res.cookie('token', result?.token, {
         httpOnly: true,
         secure: true,
         sameSite: 'strict',
@@ -45,7 +45,7 @@ export default class AuthController {
             httpStatus.OK.code,
             'OK',
             'Authentication successful',
-            token,
+            result,
           ),
         );
       logger.info(`✅ [AuthController] User authenticated: ${username}`);

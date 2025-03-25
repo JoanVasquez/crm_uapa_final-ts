@@ -1,22 +1,11 @@
 import { KMSClient, EncryptCommand, DecryptCommand } from '@aws-sdk/client-kms';
 import { BaseAppException } from '../errors/BaseAppException';
+import { CustomError } from '../errors/CustomError';
 import logger from './logger';
 
-/**
- * 🔑 AWS KMS Client Configuration
- * Initializes the AWS Key Management Service (KMS) client with the specified region.
- */
-const region = process.env.AWS_REGION ?? 'us-east-1';
+const region = process.env.AWS_REGION;
 const kmsClient = new KMSClient({ region });
 
-/**
- * 🔒 Encrypts a password using AWS KMS.
- *
- * @param password - The plaintext password to encrypt.
- * @param kmsKeyId - The AWS KMS Key ID used for encryption.
- * @returns A promise resolving to the encrypted password as a base64-encoded string.
- * @throws {BaseAppException} If encryption fails.
- */
 async function encryptPassword(
   password: string,
   kmsKeyId: string,
@@ -42,21 +31,21 @@ async function encryptPassword(
     logger.info('✅ Password successfully encrypted');
     return encryptedPassword;
   } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
-    logger.error(`❌ Error encrypting password: ${errorMessage}`);
+    if (error instanceof CustomError) {
+      logger.error(`❌ Custom error during encryption: ${error.message}`);
+      throw error; // Rethrow CustomErrors as-is
+    }
+
+    let errorMessage: string = '';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+
+    logger.error(`❌ Unknown error during encryption: ${errorMessage}`);
     throw new BaseAppException('Encryption failed', 500, errorMessage);
   }
 }
 
-/**
- * 🔓 Decrypts an encrypted password using AWS KMS.
- *
- * @param encryptedPassword - The base64-encoded encrypted password.
- * @param kmsKeyId - The AWS KMS Key ID used for decryption.
- * @returns A promise resolving to the decrypted plaintext password.
- * @throws {BaseAppException} If decryption fails.
- */
 async function decryptPassword(
   encryptedPassword: string,
   kmsKeyId: string,
@@ -82,9 +71,17 @@ async function decryptPassword(
     logger.info('✅ Password successfully decrypted');
     return decryptedPassword;
   } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
-    logger.error(`❌ Error decrypting password: ${errorMessage}`);
+    if (error instanceof CustomError) {
+      logger.error(`❌ Custom error during decryption: ${error.message}`);
+      throw error; // Rethrow CustomErrors as-is
+    }
+
+    let errorMessage: string = '';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+
+    logger.error(`❌ Unknown error during decryption: ${errorMessage}`);
     throw new BaseAppException('Decryption failed', 500, errorMessage);
   }
 }

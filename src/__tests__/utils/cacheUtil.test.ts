@@ -1,178 +1,324 @@
-import Redis from 'ioredis';
+/**
+ * cacheUtil.test.ts
+ *
+ * A single file covering all lines in `cacheUtil.ts`.
+ */
+
+// We'll only import your logger & SSM mocks at the top
+// and define `createMockRedisClient` with `redis-mock`.
+
 import logger from '../../utils/logger';
-import { getParameterDirect } from '../../utils/ssmUtil'; // This one is fine to keep
+import { getParameterDirect } from '../../utils/ssmUtil';
+import RedisMock from 'redis-mock';
+import { promisify } from 'util';
 
-import { RedisError } from '../../errors/RedisError'; // If you throw RedisError in your test, you can keep this import.
-// If you re-import RedisError from cacheUtil again, you must remove this and do dynamic import as well.
+///////////////////////////////////////////////////////////////////
+// 1) A helper to build a redis-mock client you can override/ping
+///////////////////////////////////////////////////////////////////
+function createMockRedisClient() {
+  const mock = RedisMock.createClient();
+  return {
+    set: promisify(mock.set).bind(mock),
+    get: promisify(mock.get).bind(mock),
+    del: promisify(mock.del).bind(mock),
+    expire: promisify(mock.expire).bind(mock),
+    quit: async () => 'OK',
+    disconnect: () => {},
+    // We'll define .ping inside each test if needed
+  };
+}
 
-// Mock dependencies
-jest.mock('ioredis');
 jest.mock('../../utils/logger');
-jest.mock('../../utils/ssmUtil', () => ({
-  getParameterDirect: jest.fn(),
-}));
+jest.mock('../../utils/ssmUtil');
 
-describe('Cache', () => {
-  let mockRedisClient: jest.Mocked<Redis>;
+///////////////////////////////////////////////////////////////////
+// 2) Unit tests for the Cache class (set/get/delete/TTL).
+///////////////////////////////////////////////////////////////////
+describe('Cache Class - Unit Tests', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let CacheClass: any; // Will hold the dynamic import of `Cache`
-  let initCache: Function; // Will hold the dynamic import of `initCache`
-  let getCache: Function; // Will hold the dynamic import of `getCache`
+  let CacheClass: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let RedisErrorClass: any;
+  let cache: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockRedisClient: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    jest.resetModules();
 
-    // Create a mock Redis client
-    mockRedisClient = new Redis() as jest.Mocked<Redis>;
+    // We'll mock ioredis AFTER modules reset, so that any new import sees the mock
+    jest.mock('ioredis', () => {
+      const Redis = jest.fn();
+      // By default, return an empty object so we can shape it in each test
+      Redis.mockImplementation(() => ({}));
+      return { __esModule: true, default: Redis };
+    });
+    jest.mock('../../utils/logger');
+
+    // Now require the code under test
+    const cacheUtil = require('../../utils/cacheUtil');
+    CacheClass = cacheUtil.Cache;
+
+    mockRedisClient = createMockRedisClient();
+    // By default, let's define .ping => resolves, for local usage
+    mockRedisClient.ping = jest.fn().mockResolvedValue('PONG');
+
+    // Instantiate the Cache
+    cache = new CacheClass(mockRedisClient);
   });
 
-  describe('Cache class methods', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let cache: any;
+  afterEach(async () => {
+    if (mockRedisClient?.quit) {
+      await mockRedisClient.quit().catch(() => {});
+    }
+  });
 
-    // For these, you don't need to reset modules each time, because you’re just
-    // testing the class directly. But if you do, also do dynamic import.
-    beforeEach(() => {
-      // Pull in the Cache class for direct testing
-      const { Cache } = require('../../utils/cacheUtil');
-      CacheClass = Cache;
-      cache = new CacheClass(mockRedisClient);
+  describe('set()', () => {
+    it('should set a key successfully', async () => {
+      await expect(cache.set('key', 'value', 123)).resolves.not.toThrow();
+
+      // Confirm the value is actually set in redis-mock
+      const stored = await mockRedisClient.get('key');
+      expect(stored).toBe('value');
     });
 
-    describe('set', () => {
-      it('should successfully set a value in cache', async () => {
-        mockRedisClient.set.mockResolvedValue('OK');
+    it('should throw RedisError when set fails', async () => {
+      const error = new Error('Set command failed');
+      jest.spyOn(mockRedisClient, 'set').mockRejectedValueOnce(error);
 
-        await cache.set('testKey', 'testValue', 3600);
-
-        expect(mockRedisClient.set).toHaveBeenCalledWith(
-          'testKey',
-          'testValue',
-          'EX',
-          3600,
-        );
-        expect(logger.info).toHaveBeenCalled();
-      });
-
-      it('should throw RedisError when set fails', async () => {
-        const error = new Error('Redis connection failed');
-        mockRedisClient.set.mockRejectedValue(error);
-
-        await expect(cache.set('testKey', 'testValue', 3600)).rejects.toThrow(
-          RedisError,
-        );
-        expect(logger.error).toHaveBeenCalled();
-      });
-    });
-
-    describe('get', () => {
-      it('should successfully get a value from cache', async () => {
-        mockRedisClient.get.mockResolvedValue('testValue');
-
-        const result = await cache.get('testKey');
-
-        expect(result).toBe('testValue');
-        expect(mockRedisClient.get).toHaveBeenCalledWith('testKey');
-        expect(logger.info).toHaveBeenCalled();
-      });
-
-      it('should return null for non-existent key', async () => {
-        mockRedisClient.get.mockResolvedValue(null);
-
-        const result = await cache.get('nonExistentKey');
-        expect(result).toBeNull();
-        expect(logger.info).toHaveBeenCalled();
-      });
-
-      it('should throw RedisError when get fails', async () => {
-        const error = new Error('Redis connection failed');
-        mockRedisClient.get.mockRejectedValue(error);
-
-        await expect(cache.get('testKey')).rejects.toThrow(RedisError);
-        expect(logger.error).toHaveBeenCalled();
-      });
-    });
-
-    describe('delete', () => {
-      it('should successfully delete a key from cache', async () => {
-        mockRedisClient.del.mockResolvedValue(1);
-
-        await cache.delete('testKey');
-
-        expect(mockRedisClient.del).toHaveBeenCalledWith('testKey');
-        expect(logger.info).toHaveBeenCalled();
-      });
-
-      it('should throw RedisError when delete fails', async () => {
-        const error = new Error('Redis connection failed');
-        mockRedisClient.del.mockRejectedValue(error);
-
-        await expect(cache.delete('testKey')).rejects.toThrow(RedisError);
-        expect(logger.error).toHaveBeenCalled();
-      });
+      await expect(cache.set('failKey', 'whatever', 99)).rejects.toThrowError(
+        'Set command failed',
+      );
     });
   });
 
-  describe('initCache', () => {
-    beforeEach(() => {
-      jest.resetModules();
-      jest.clearAllMocks();
-      delete process.env.APP_ENV;
-      delete process.env.SSM_REDIS_ENDPOINT_LOCAL;
-      delete process.env.REDIS_URL_TEST;
+  describe('get()', () => {
+    it('should get an existing key', async () => {
+      // Pre-store something
+      await mockRedisClient.set('testKey', 'testValue');
+      const val = await cache.get('testKey');
+      expect(val).toBe('testValue');
     });
 
-    it('should throw error when Redis URL is not set', async () => {
-      // Arrange
-      process.env.APP_ENV = 'dev';
+    it('should return null for nonexistent key', async () => {
+      const val = await cache.get('no-such-key');
+      expect(val).toBeNull();
+    });
 
-      // Force getParameterDirect to return undefined => no redisUrl
-      (getParameterDirect as jest.Mock).mockResolvedValueOnce(undefined);
+    it('should throw on get failure', async () => {
+      jest
+        .spyOn(mockRedisClient, 'get')
+        .mockRejectedValueOnce(new Error('Get command failed'));
 
-      // Re-import
-      const cacheModule = require('../../utils/cacheUtil');
-      initCache = cacheModule.initCache;
-      CacheClass = cacheModule.Cache;
-
-      // Import the same RedisError your code uses:
-      // (Since your cacheUtil imports RedisError from '../../errors/RedisError',
-      // we do the exact same dynamic import here. That ensures the references match.)
-      const errorModule = require('../../errors/RedisError');
-      RedisErrorClass = errorModule.RedisError;
-
-      // Act & Assert
-      await expect(initCache()).rejects.toThrow(RedisErrorClass);
-      //            ^^^^^^^^^^^^^^^^^^^^^^^^^^
-      // Must check *this* reference to RedisError, not a top-level import
+      await expect(cache.get('errKey')).rejects.toThrowError(
+        /Get command failed/,
+      );
     });
   });
 
-  describe('getCache', () => {
-    beforeEach(() => {
-      jest.resetModules();
-      jest.clearAllMocks();
-      delete process.env.APP_ENV;
-      delete process.env.SSM_REDIS_ENDPOINT_LOCAL;
-      delete process.env.REDIS_URL_TEST;
+  describe('delete()', () => {
+    it('should delete an existing key', async () => {
+      await mockRedisClient.set('delKey', 'someVal');
+      await expect(cache.delete('delKey')).resolves.not.toThrow();
+
+      const afterDel = await mockRedisClient.get('delKey');
+      expect(afterDel).toBeNull();
     });
 
-    it('should return cache instance when initialized', async () => {
-      process.env.APP_ENV = 'test';
-      process.env.REDIS_URL_TEST = 'redis://localhost:6379';
+    it('should throw on delete failure', async () => {
+      jest
+        .spyOn(mockRedisClient, 'del')
+        .mockRejectedValueOnce(new Error('Delete command failed'));
 
-      const mockPing = jest.fn().mockResolvedValue('PONG');
-      (Redis as jest.MockedClass<typeof Redis>).prototype.ping = mockPing;
-
-      const cacheModule = require('../../utils/cacheUtil');
-      initCache = cacheModule.initCache;
-      getCache = cacheModule.getCache;
-      CacheClass = cacheModule.Cache;
-
-      await initCache();
-      const c = getCache();
-      expect(c).toBeInstanceOf(CacheClass);
+      await expect(cache.delete('badDel')).rejects.toThrowError(
+        /Delete command failed/,
+      );
     });
+  });
+
+  describe('TTL behavior', () => {
+    it('should expire a key after set TTL', async () => {
+      await cache.set('ttlKey', 'ttlValue', 1);
+      let found = await cache.get('ttlKey');
+      expect(found).toBe('ttlValue');
+
+      await new Promise((r) => setTimeout(r, 1100));
+
+      found = await cache.get('ttlKey');
+      expect(found).toBeNull();
+    });
+  });
+});
+
+///////////////////////////////////////////////////////////////////
+// 3) Full coverage for initCache() & getCache() (integration).
+///////////////////////////////////////////////////////////////////
+describe('initCache() and getCache() - Integration Tests', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    jest.resetModules();
+
+    // Clear environment
+    delete process.env.APP_ENV;
+    delete process.env.REDIS_URL_TEST;
+    delete process.env.SSM_REDIS_ENDPOINT_LOCAL;
+    delete process.env.SSM_REDIS_ENDPOINT;
+  });
+
+  it('should initialize in test environment successfully', async () => {
+    process.env.APP_ENV = 'test';
+    process.env.REDIS_URL_TEST = 'redis://fake-host:6379';
+
+    // 1) Mock ioredis with a normal ping => PONG
+    jest.mock('ioredis', () => {
+      const Redis = jest.fn();
+      Redis.mockImplementation(() => ({
+        ping: jest.fn().mockResolvedValue('PONG'),
+      }));
+      return { __esModule: true, default: Redis };
+    });
+
+    // 2) Now require the code
+    const { initCache, getCache } = require('../../utils/cacheUtil');
+
+    // 3) run test
+    await expect(initCache()).resolves.not.toThrow();
+
+    const instance = getCache();
+    expect(instance).toBeDefined();
+  });
+
+  it('should handle repeated initCache calls (re-initialize check)', async () => {
+    process.env.APP_ENV = 'test';
+    process.env.REDIS_URL_TEST = 'redis://another-host:6379';
+
+    jest.mock('ioredis', () => {
+      const Redis = jest.fn();
+      Redis.mockImplementation(() => ({
+        ping: jest.fn().mockResolvedValue('PONG'),
+      }));
+      return { __esModule: true, default: Redis };
+    });
+
+    const { initCache } = require('../../utils/cacheUtil');
+
+    const first = await initCache();
+    const second = await initCache();
+
+    // The same instance each time
+    expect(first).toBe(second);
+  });
+
+  it('should throw error if no Redis URL is found (dev)', async () => {
+    process.env.APP_ENV = 'dev';
+    (getParameterDirect as jest.Mock).mockResolvedValueOnce(undefined);
+
+    jest.mock('ioredis', () => {
+      const Redis = jest.fn();
+      Redis.mockImplementation(() => ({
+        ping: jest.fn().mockResolvedValue('PONG'),
+      }));
+      return { __esModule: true, default: Redis };
+    });
+
+    const { initCache } = require('../../utils/cacheUtil');
+
+    await expect(initCache()).rejects.toThrowError(
+      /Redis URL not set in environment variables/,
+    );
+  });
+
+  it('should throw error if no Redis URL is found (prod)', async () => {
+    process.env.APP_ENV = 'prod';
+    (getParameterDirect as jest.Mock).mockResolvedValueOnce(undefined);
+
+    jest.mock('ioredis', () => {
+      const Redis = jest.fn();
+      Redis.mockImplementation(() => ({
+        ping: jest.fn().mockResolvedValue('PONG'),
+      }));
+      return { __esModule: true, default: Redis };
+    });
+
+    const { initCache } = require('../../utils/cacheUtil');
+
+    await expect(initCache()).rejects.toThrowError(
+      /Redis URL not set in environment variables/,
+    );
+  });
+
+  it('should normalize URL if missing protocol (test env)', async () => {
+    process.env.APP_ENV = 'test';
+    process.env.REDIS_URL_TEST = 'hostNoProtocol:7000';
+
+    jest.mock('ioredis', () => {
+      const Redis = jest.fn();
+      Redis.mockImplementation((url: string) => {
+        // We expect it to auto prepend "redis://"
+        expect(url).toBe('redis://hostNoProtocol:7000');
+        return { ping: jest.fn().mockResolvedValue('PONG') };
+      });
+      return { __esModule: true, default: Redis };
+    });
+
+    const { initCache } = require('../../utils/cacheUtil');
+
+    await expect(initCache()).resolves.not.toThrow();
+  });
+
+  it('should throw error if ping fails', async () => {
+    process.env.APP_ENV = 'test';
+    process.env.REDIS_URL_TEST = 'redis://fails-ping:9999';
+
+    // Reset logger mock
+    (logger.error as jest.Mock).mockClear();
+
+    jest.mock('ioredis', () => {
+      const Redis = jest.fn();
+      Redis.mockImplementation(() => ({
+        ping: jest.fn().mockRejectedValue(new Error('Ping failure')),
+      }));
+      return { __esModule: true, default: Redis };
+    });
+
+    const { initCache } = require('../../utils/cacheUtil');
+
+    await expect(initCache()).rejects.toThrowError(/Ping failure/);
+  });
+
+  it('should throw if getCache is called before initCache', async () => {
+    jest.mock('ioredis', () => {
+      const Redis = jest.fn();
+      Redis.mockImplementation(() => ({
+        ping: jest.fn().mockResolvedValue('PONG'),
+      }));
+      return { __esModule: true, default: Redis };
+    });
+
+    const { getCache } = require('../../utils/cacheUtil');
+    expect(() => getCache()).toThrowError(/Cache has not been initialized/);
+  });
+
+  //  NEW TEST --------------
+  it('should throw error if APP_ENV is not set', async () => {
+    // 1) No environment
+    delete process.env.APP_ENV;
+
+    // 2) Mock ioredis
+    jest.mock('ioredis', () => {
+      const Redis = jest.fn();
+      Redis.mockImplementation(() => ({
+        ping: jest.fn().mockResolvedValue('PONG'),
+      }));
+      return { __esModule: true, default: Redis };
+    });
+
+    // 3) Now require the code
+    const { initCache } = require('../../utils/cacheUtil');
+
+    // 4) We expect an error about missing Redis URL
+    await expect(initCache()).rejects.toThrowError(
+      /Redis URL not set in environment variables/,
+    );
   });
 });

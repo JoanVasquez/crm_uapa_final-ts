@@ -8,7 +8,7 @@ import logger from './logger';
  * Initializes the S3 client using the specified AWS region.
  */
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION ?? 'us-east-1',
+  region: process.env.AWS_REGION,
 });
 
 /**
@@ -45,7 +45,7 @@ async function uploadFile(
     await s3Client.send(command);
 
     // 🌎 Construct the public URL of the uploaded file
-    const region = process.env.AWS_REGION ?? 'us-east-1';
+    const region = process.env.AWS_REGION;
     const location =
       region === 'us-east-1'
         ? `https://${bucket}.s3.amazonaws.com/${key}`

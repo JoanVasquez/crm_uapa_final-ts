@@ -7,17 +7,17 @@ import logger from '../../utils/logger';
 jest.mock('../../utils/logger');
 jest.mock('../../utils/cacheUtil');
 
-// Create a test entity
+// Create a test entity class.
 class TestEntity {
   constructor(
-    // eslint-disable-next-line no-unused-vars
+    /* eslint-disable no-unused-vars */
     public id: number = 0,
-    // eslint-disable-next-line no-unused-vars
+    /* eslint-disable no-unused-vars */
     public name: string = '',
   ) {}
 }
 
-// Create a concrete implementation of GenericService for testing
+// Concrete implementation of GenericService for testing.
 class TestService extends GenericService<TestEntity> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(cache: any, repository: IRepository<TestEntity>) {
@@ -34,17 +34,16 @@ describe('GenericService', () => {
   const testEntity = new TestEntity(1, 'Test Entity');
 
   beforeEach(() => {
-    // Reset all mocks
     jest.clearAllMocks();
 
-    // Create mock cache
+    // Create a mock cache
     mockCache = {
       get: jest.fn(),
       set: jest.fn(),
       delete: jest.fn(),
     };
 
-    // Create mock repository
+    // Create a mock repository
     mockRepository = {
       createEntity: jest.fn(),
       findEntityById: jest.fn(),
@@ -61,6 +60,9 @@ describe('GenericService', () => {
     testService = new TestService(mockCache, mockRepository);
   });
 
+  // -----------------------
+  //  Constructor
+  // -----------------------
   describe('constructor', () => {
     it('should initialize service correctly', () => {
       expect(logger.info).toHaveBeenCalledWith(
@@ -69,16 +71,16 @@ describe('GenericService', () => {
     });
   });
 
+  // -----------------------
+  //  SAVE
+  // -----------------------
   describe('save', () => {
     it('should save entity and cache it successfully', async () => {
-      // Arrange
       mockRepository.createEntity.mockResolvedValue(testEntity);
       mockCache.set.mockResolvedValue('OK');
 
-      // Act
       const result = await testService.save(testEntity);
 
-      // Assert
       expect(result).toEqual(testEntity);
       expect(mockRepository.createEntity).toHaveBeenCalledWith(testEntity);
       expect(mockCache.set).toHaveBeenCalledWith(
@@ -87,32 +89,29 @@ describe('GenericService', () => {
         3600,
       );
       expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining('Cached entity'),
+        expect.stringContaining('Cached entity: testentity:1'),
       );
     });
 
-    it('should handle save failure', async () => {
-      // Arrange
+    it('should handle save failure by returning null', async () => {
       mockRepository.createEntity.mockResolvedValue(null);
 
-      // Act
       const result = await testService.save(testEntity);
 
-      // Assert
       expect(result).toBeNull();
       expect(mockCache.set).not.toHaveBeenCalled();
     });
   });
 
+  // -----------------------
+  //  FIND BY ID
+  // -----------------------
   describe('findById', () => {
     it('should return cached entity if available', async () => {
-      // Arrange
       mockCache.get.mockResolvedValue(JSON.stringify(testEntity));
 
-      // Act
       const result = await testService.findById(1);
 
-      // Assert
       expect(result).toEqual(testEntity);
       expect(mockRepository.findEntityById).not.toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith(
@@ -121,14 +120,11 @@ describe('GenericService', () => {
     });
 
     it('should fetch and cache entity if not in cache', async () => {
-      // Arrange
       mockCache.get.mockResolvedValue(null);
       mockRepository.findEntityById.mockResolvedValue(testEntity);
 
-      // Act
       const result = await testService.findById(1);
 
-      // Assert
       expect(result).toEqual(testEntity);
       expect(mockRepository.findEntityById).toHaveBeenCalledWith(1);
       expect(mockCache.set).toHaveBeenCalledWith(
@@ -139,14 +135,11 @@ describe('GenericService', () => {
     });
 
     it('should handle entity not found', async () => {
-      // Arrange
       mockCache.get.mockResolvedValue(null);
       mockRepository.findEntityById.mockResolvedValue(null);
 
-      // Act
       const result = await testService.findById(1);
 
-      // Assert
       expect(result).toBeNull();
       expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Entity not found'),
@@ -154,19 +147,19 @@ describe('GenericService', () => {
     });
   });
 
+  // -----------------------
+  //  UPDATE
+  // -----------------------
   describe('update', () => {
     const updateData: Partial<TestEntity> = { name: 'Updated Name' };
 
     it('should update entity and refresh cache', async () => {
-      // Arrange
       const updatedEntity = new TestEntity(1, 'Updated Name');
       mockRepository.updateEntity.mockResolvedValue(updatedEntity);
       mockCache.set.mockResolvedValue('OK');
 
-      // Act
       const result = await testService.update(1, updateData);
 
-      // Assert
       expect(result).toEqual(updatedEntity);
       expect(mockRepository.updateEntity).toHaveBeenCalledWith(1, updateData);
       expect(mockCache.set).toHaveBeenCalledWith(
@@ -176,116 +169,125 @@ describe('GenericService', () => {
       );
     });
 
-    it('should handle update failure', async () => {
-      // Arrange
+    it('should handle update failure by returning null', async () => {
       mockRepository.updateEntity.mockResolvedValue(null);
 
-      // Act
       const result = await testService.update(1, updateData);
 
-      // Assert
       expect(result).toBeNull();
       expect(mockCache.set).not.toHaveBeenCalled();
     });
   });
 
+  // -----------------------
+  //  DELETE
+  // -----------------------
   describe('delete', () => {
     it('should delete entity and remove from cache', async () => {
-      // Arrange
       mockRepository.deleteEntity.mockResolvedValue(true);
       mockCache.delete.mockResolvedValue(1);
 
-      // Act
       const result = await testService.delete(1);
 
-      // Assert
       expect(result).toBe(true);
       expect(mockRepository.deleteEntity).toHaveBeenCalledWith(1);
       expect(mockCache.delete).toHaveBeenCalledWith('testentity:1');
     });
 
-    it('should handle deletion failure', async () => {
-      // Arrange
+    it('should handle deletion failure by returning false', async () => {
       mockRepository.deleteEntity.mockResolvedValue(false);
 
-      // Act
       const result = await testService.delete(1);
 
-      // Assert
       expect(result).toBe(false);
       expect(mockCache.delete).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to delete entity'),
+      );
     });
   });
 
+  // -----------------------
+  //  FIND ALL
+  // -----------------------
   describe('findAll', () => {
-    it('should retrieve all entities and log', async () => {
-      // Arrange
+    it('should retrieve all entities from repository and cache them', async () => {
       const entities = [testEntity, new TestEntity(2, 'Another Entity')];
+      mockCache.get.mockResolvedValue(null);
       mockRepository.getAllEntities.mockResolvedValue(entities);
 
-      // Act
       const result = await testService.findAll();
 
-      // Assert
       expect(result).toEqual(entities);
       expect(mockRepository.getAllEntities).toHaveBeenCalled();
-      // Covers logger.info in findAll
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'testentity:all',
+        JSON.stringify(entities),
+        3600,
+      );
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Retrieving all entities for testentity'),
       );
     });
 
-    it('should handle empty entity list', async () => {
-      // Arrange
-      mockRepository.getAllEntities.mockResolvedValue([]);
+    // --- New test to cover cache hit branch (lines 153-156) ---
+    it('should return cached entities if available in findAll', async () => {
+      const cachedEntities = [testEntity, new TestEntity(2, 'Another Entity')];
+      mockCache.get.mockResolvedValue(JSON.stringify(cachedEntities));
 
-      // Act
       const result = await testService.findAll();
 
-      // Assert
-      expect(result).toEqual([]);
+      expect(result).toEqual(cachedEntities);
+      expect(mockRepository.getAllEntities).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Retrieved all entities from cache'),
+      );
     });
   });
 
+  // -----------------------
+  //  PAGINATION
+  // -----------------------
   describe('findWithPagination', () => {
-    it('should retrieve paginated entities and log', async () => {
-      // Arrange
+    it('should retrieve paginated entities from repository and cache them', async () => {
       const entities = [testEntity, new TestEntity(2, 'Another Entity')];
+      mockCache.get.mockResolvedValue(null);
       mockRepository.getEntitiesWithPagination.mockResolvedValue({
         data: entities,
         count: 2,
       });
 
-      // Act
       const result = await testService.findWithPagination(0, 2);
 
-      // Assert
       expect(result).toEqual({ data: entities, count: 2 });
       expect(mockRepository.getEntitiesWithPagination).toHaveBeenCalledWith(
         0,
         2,
       );
-      // Covers logger.info in findWithPagination
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'testentity:pagination:skip=0:take=2',
+        JSON.stringify({ data: entities, count: 2 }),
+        3600,
+      );
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Fetching paginated entities: skip=0, take=2'),
       );
     });
 
-    it('should handle zero results', async () => {
-      // Arrange
-      mockRepository.getEntitiesWithPagination.mockResolvedValue({
-        data: [],
-        count: 0,
-      });
+    // --- New test to cover cache hit branch (lines 188-191) ---
+    it('should return cached paginated data if available', async () => {
+      const paginatedResult = { data: [testEntity], count: 1 };
+      const cacheKey = 'testentity:pagination:skip=0:take=2';
+      mockCache.get.mockResolvedValue(JSON.stringify(paginatedResult));
 
-      // Act
-      const result = await testService.findWithPagination(5, 5);
+      const result = await testService.findWithPagination(0, 2);
 
-      // Assert
-      expect(result).toEqual({ data: [], count: 0 });
-      expect(mockRepository.getEntitiesWithPagination).toHaveBeenCalledWith(
-        5,
-        5,
+      expect(result).toEqual(paginatedResult);
+      expect(mockRepository.getEntitiesWithPagination).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `Retrieved paginated data from cache: ${cacheKey}`,
+        ),
       );
     });
   });

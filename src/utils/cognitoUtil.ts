@@ -7,23 +7,41 @@ import {
   ConfirmForgotPasswordCommand,
   ResendConfirmationCodeCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { AuthError } from '../errors/AuthError';
-import { BaseAppException } from '../errors/BaseAppException';
-import logger from '../utils/logger';
-import { getCachedParameter } from './ssmUtil';
 import crypto from 'crypto';
 
+import logger from '../utils/logger';
+import { getCachedParameter } from './ssmUtil';
+
+// Errors
+import { AuthError } from '../errors/AuthError';
+import { BaseAppException } from '../errors/BaseAppException';
+import { RequestValidationError } from '../errors/RequestValidationError';
+import { NotFoundError } from '../errors/NotFoundError';
+import { CustomError } from '../errors/CustomError';
+
+/**
+ * Below are some of the common Cognito exception names you might catch:
+ *
+ * - "UserNotFoundException"
+ * - "NotAuthorizedException"
+ * - "UsernameExistsException"
+ * - "CodeMismatchException"
+ * - "ExpiredCodeException"
+ * - "InvalidParameterException"
+ * - "ResourceNotFoundException"
+ * - "LimitExceededException"
+ * - "TooManyFailedAttemptsException"
+ * - "TooManyRequestsException"
+ * - "InvalidPasswordException"
+ */
+
 // 🔑 Initialize Cognito client
-const cognitoClient = new CognitoIdentityProviderClient({
-  region: process.env.AWS_REGION ?? 'us-east-1',
+export const cognitoClient = new CognitoIdentityProviderClient({
+  region: process.env.AWS_REGION,
 });
 
 /**
  * 🔐 Computes the secret hash required for Cognito authentication.
- * @param username - The username of the user.
- * @param clientId - The Cognito client ID.
- * @param clientSecret - The Cognito client secret.
- * @returns A promise resolving to the computed secret hash.
  */
 async function computeSecretHash(
   username: string,
@@ -38,11 +56,52 @@ async function computeSecretHash(
 }
 
 /**
+ * Converts AWS Cognito errors into your custom errors.
+ */
+function mapCognitoErrorToCustomError(
+  error: unknown,
+  defaultMessage: string,
+  defaultStatus: number,
+): Error {
+  // 1) If it's *already* one of your CustomErrors, just return it as-is
+  if (error instanceof CustomError) {
+    return error;
+  }
+
+  // 2) If it's not even an Error, wrap it in BaseAppException
+  if (!(error instanceof Error)) {
+    return new BaseAppException(defaultMessage, defaultStatus, String(error));
+  }
+
+  switch (error.name) {
+    case 'NotAuthorizedException':
+      return new AuthError('Incorrect credentials or unauthorized.');
+    case 'UserNotFoundException':
+      return new NotFoundError('User');
+    case 'UsernameExistsException':
+      return new BaseAppException('User already exists.', 409, error.message);
+    case 'InvalidParameterException':
+    case 'InvalidPasswordException':
+      return new RequestValidationError(error.message);
+    case 'CodeMismatchException':
+      return new BaseAppException('Invalid code.', 400, error.message);
+    case 'ExpiredCodeException':
+      return new BaseAppException('Expired code.', 400, error.message);
+    case 'LimitExceededException':
+    case 'TooManyRequestsException':
+      return new BaseAppException(
+        'Too many requests, please try again later.',
+        429,
+        error.message,
+      );
+    default:
+      // If we got here, throw a more generic error
+      return new BaseAppException(defaultMessage, defaultStatus, error.message);
+  }
+}
+
+/**
  * 🔑 Authenticates a user in Cognito.
- * @param username - The username.
- * @param password - The password.
- * @returns A promise resolving to the authentication token.
- * @throws {AuthError} If authentication fails.
  */
 async function authenticate(
   username: string,
@@ -72,6 +131,7 @@ async function authenticate(
     });
 
     const response = await cognitoClient.send(command);
+
     if (!response.AuthenticationResult?.IdToken) {
       throw new AuthError('❌ Authentication failed: No token received');
     }
@@ -83,18 +143,14 @@ async function authenticate(
       `❌ [CognitoService] Authentication failed for user: ${username}`,
       { error },
     );
-    throw new AuthError(
-      `Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    );
+
+    // Convert AWS error to our AuthError or fallback
+    throw mapCognitoErrorToCustomError(error, 'Authentication failed', 401);
   }
 }
 
 /**
  * 📝 Registers a new user in Cognito.
- * @param username - The username.
- * @param password - The password.
- * @param email - The user's email.
- * @throws {BaseAppException} If registration fails.
  */
 async function registerUser(
   username: string,
@@ -129,19 +185,14 @@ async function registerUser(
       `❌ [CognitoService] Registration failed for user: ${username}`,
       { error },
     );
-    throw new BaseAppException(
-      'Registration failed',
-      500,
-      error instanceof Error ? error.message : String(error),
-    );
+
+    // Convert AWS error to our custom error or fallback
+    throw mapCognitoErrorToCustomError(error, 'Registration failed', 500);
   }
 }
 
 /**
  * 📩 Confirms user registration using a verification code.
- * @param username - The username.
- * @param confirmationCode - The confirmation code.
- * @throws {BaseAppException} If confirmation fails.
  */
 async function confirmUserRegistration(
   username: string,
@@ -174,18 +225,13 @@ async function confirmUserRegistration(
       `❌ [CognitoService] Confirmation failed for user: ${username}`,
       { error },
     );
-    throw new BaseAppException(
-      'User confirmation failed',
-      500,
-      error instanceof Error ? error.message : String(error),
-    );
+
+    throw mapCognitoErrorToCustomError(error, 'User confirmation failed', 500);
   }
 }
 
 /**
  * 🔄 Initiates a password reset request.
- * @param username - The username.
- * @throws {BaseAppException} If initiation fails.
  */
 async function initiatePasswordReset(username: string): Promise<void> {
   try {
@@ -212,22 +258,21 @@ async function initiatePasswordReset(username: string): Promise<void> {
   } catch (error) {
     logger.error(
       `❌ [CognitoService] Password reset initiation failed for user: ${username}`,
-      { error },
+      {
+        error,
+      },
     );
-    throw new BaseAppException(
+
+    throw mapCognitoErrorToCustomError(
+      error,
       'Password reset initiation failed',
       500,
-      error instanceof Error ? error.message : String(error),
     );
   }
 }
 
 /**
  * 🔑 Completes the password reset process.
- * @param username - The username.
- * @param newPassword - The new password.
- * @param confirmationCode - The confirmation code.
- * @throws {BaseAppException} If reset fails.
  */
 async function completePasswordReset(
   username: string,
@@ -262,18 +307,13 @@ async function completePasswordReset(
       `❌ [CognitoService] Password reset failed for user: ${username}`,
       { error },
     );
-    throw new BaseAppException(
-      'Password reset failed',
-      500,
-      error instanceof Error ? error.message : String(error),
-    );
+
+    throw mapCognitoErrorToCustomError(error, 'Password reset failed', 500);
   }
 }
 
 /**
  * 🔄 Resends the confirmation code to a user.
- * @param username - The username.
- * @throws {BaseAppException} If resend fails.
  */
 async function resendConfirmationCode(username: string): Promise<void> {
   try {
@@ -300,12 +340,15 @@ async function resendConfirmationCode(username: string): Promise<void> {
   } catch (error) {
     logger.error(
       `❌ [CognitoService] Failed to resend confirmation code for user: ${username}`,
-      { error },
+      {
+        error,
+      },
     );
-    throw new BaseAppException(
+
+    throw mapCognitoErrorToCustomError(
+      error,
       'Resending confirmation code failed',
       500,
-      error instanceof Error ? error.message : String(error),
     );
   }
 }
