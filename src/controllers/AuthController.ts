@@ -36,6 +36,7 @@ export default class AuthController {
         httpOnly: true,
         secure: true,
         sameSite: 'strict',
+        maxAge: 3600000,
       });
 
       res
