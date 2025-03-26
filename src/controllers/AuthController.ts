@@ -214,4 +214,31 @@ export default class AuthController {
       next(error);
     }
   };
+
+  /**
+   * 🚪 Logs out the user by clearing the JWT token cookie.
+   */
+  logout = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+      });
+
+      res
+        .status(httpStatus.OK.code)
+        .send(
+          new ResponseTemplate(httpStatus.OK.code, 'OK', 'Logout successful'),
+        );
+      logger.info('🚪 [AuthController] User logged out successfully');
+    } catch (error) {
+      logger.error('❌ [AuthController] Logout failed', { error });
+      next(error);
+    }
+  };
 }

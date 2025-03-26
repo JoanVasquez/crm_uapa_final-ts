@@ -285,4 +285,16 @@ router.post(
   authController.completePasswordReset,
 );
 
+/**
+ * @swagger
+ * /api/v1/user/logout:
+ *   post:
+ *     summary: Logout user
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Successfully logged out
+ */
+router.post('/user/logout', authController.logout);
+
 export default router;
