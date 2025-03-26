@@ -257,7 +257,7 @@ describe('GenericService', () => {
         count: 2,
       });
 
-      const result = await testService.findWithPagination(0, 2);
+      const result = await testService.findPaginated(0, 2);
 
       expect(result).toEqual({ data: entities, count: 2 });
       expect(mockRepository.getEntitiesWithPagination).toHaveBeenCalledWith(
@@ -280,7 +280,7 @@ describe('GenericService', () => {
       const cacheKey = 'testentity:pagination:skip=0:take=2';
       mockCache.get.mockResolvedValue(JSON.stringify(paginatedResult));
 
-      const result = await testService.findWithPagination(0, 2);
+      const result = await testService.findPaginated(0, 2);
 
       expect(result).toEqual(paginatedResult);
       expect(mockRepository.getEntitiesWithPagination).not.toHaveBeenCalled();

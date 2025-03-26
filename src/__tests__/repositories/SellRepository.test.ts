@@ -219,12 +219,19 @@ describe('SellRepository', () => {
     it('should return paginated sell entities', async () => {
       mockRepository.findAndCount.mockResolvedValue([[testSell], 1]);
 
-      const result = await sellRepository.getEntitiesWithPagination(0, 10);
+      const page = 1;
+      const perPage = 10;
+      const expectedSkip = (page - 1) * perPage;
+
+      const result = await sellRepository.getEntitiesWithPagination(
+        page,
+        perPage,
+      );
 
       expect(result).toEqual({ data: [testSell], count: 1 });
       expect(mockRepository.findAndCount).toHaveBeenCalledWith({
-        skip: 0,
-        take: 10,
+        skip: expectedSkip,
+        take: perPage,
       });
     });
 

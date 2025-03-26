@@ -358,15 +358,24 @@ describe('GenericRepository', () => {
       const entities = [testEntity, { ...testEntity, id: 2 }];
       mockRepository.findAndCount.mockResolvedValue([entities, 2]);
 
-      const skip = 0;
-      const take = 2;
-      const result = await testRepository.getEntitiesWithPagination(skip, take);
+      const page = 1;
+      const perPage = 2;
+      const expectedSkip = 0;
+      const expectedTake = 2;
+
+      const result = await testRepository.getEntitiesWithPagination(
+        page,
+        perPage,
+      );
 
       expect(result).toEqual({ data: entities, count: 2 });
-      expect(mockRepository.findAndCount).toHaveBeenCalledWith({ skip, take });
+      expect(mockRepository.findAndCount).toHaveBeenCalledWith({
+        skip: expectedSkip,
+        take: expectedTake,
+      });
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining(
-          `Retrieved ${entities.length} records (Page size: ${take})`,
+          `Retrieved ${entities.length} records (Page: ${page}, PerPage: ${perPage})`,
         ),
       );
     });

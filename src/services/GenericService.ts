@@ -173,7 +173,7 @@ export abstract class GenericService<T> implements ICRUD<T> {
    *   - `data`: The retrieved entities.
    *   - `count`: The total number of entities.
    */
-  async findWithPagination(
+  async findPaginated(
     skip: number,
     take: number,
   ): Promise<{ data: T[]; count: number }> {

@@ -193,13 +193,13 @@ export default abstract class BaseController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const page = parseInt(req.query.page as string);
-      const perPage = parseInt(req.query.per_page as string);
+      const page = parseInt(req.query.page as string, 10) || 1;
+      const perPage = parseInt(req.query.per_page as string, 10) || 10;
       logger.info(
         `📊 [BaseController] Fetching paginated entities: page=${page}, per_page=${perPage}`,
       );
 
-      const entities = await this.baseService.findWithPagination(page, perPage);
+      const entities = await this.baseService.findPaginated(page, perPage);
 
       res
         .status(httpStatus.OK.code)

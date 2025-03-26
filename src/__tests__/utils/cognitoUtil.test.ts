@@ -65,29 +65,33 @@ describe('cognitoUtil tests', () => {
   // ----------------------------------------------------------------------------
 
   describe('authenticate()', () => {
-    it('should authenticate user successfully and return IdToken', async () => {
-      // Mock a successful InitiateAuth response
+    it('should throw AuthError if the response has no RefreshToken', async () => {
       cognitoMock.on(InitiateAuthCommand).resolves({
         AuthenticationResult: {
           IdToken: 'FAKE_ID_TOKEN',
         },
       });
 
-      const token = await authenticate('testUser', 'testPass');
-      expect(token).toEqual('FAKE_ID_TOKEN');
+      await expect(authenticate('testUser', 'testPass')).rejects.toThrow(
+        AuthError,
+      );
+      await expect(authenticate('testUser', 'testPass')).rejects.toThrow(
+        '❌ Authentication failed: Token(s) missing',
+      );
     });
 
-    it('should throw AuthError if the response has no IdToken', async () => {
-      // Mock a response missing IdToken
+    it('should throw AuthError if the response has no RefreshToken', async () => {
       cognitoMock.on(InitiateAuthCommand).resolves({
-        AuthenticationResult: {},
+        AuthenticationResult: {
+          IdToken: 'FAKE_ID_TOKEN',
+        },
       });
 
       await expect(authenticate('testUser', 'testPass')).rejects.toThrow(
         AuthError,
       );
       await expect(authenticate('testUser', 'testPass')).rejects.toThrow(
-        'No token received',
+        '❌ Authentication failed: Token(s) missing',
       );
     });
 
@@ -193,27 +197,46 @@ describe('cognitoUtil tests', () => {
       }
     });
     it('should throw AuthError when AuthenticationResult is undefined', async () => {
-      cognitoMock.on(InitiateAuthCommand).resolves({}); // ✅ Completely missing AuthenticationResult
+      cognitoMock.on(InitiateAuthCommand).resolves({});
 
       await expect(authenticate('testUser', 'testPass')).rejects.toThrow(
         AuthError,
       );
       await expect(authenticate('testUser', 'testPass')).rejects.toThrow(
-        'No token received',
+        '❌ Authentication failed: Token(s) missing',
       );
     });
+
     it('should throw AuthError when IdToken is null', async () => {
       cognitoMock.on(InitiateAuthCommand).resolves({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        AuthenticationResult: { IdToken: null } as any,
+        AuthenticationResult: {
+          IdToken: '',
+          RefreshToken: 'some-refresh-token',
+        },
       });
 
       await expect(authenticate('testUser', 'testPass')).rejects.toThrow(
         AuthError,
       );
       await expect(authenticate('testUser', 'testPass')).rejects.toThrow(
-        'No token received',
+        '❌ Authentication failed: Token(s) missing',
       );
+    });
+    it('should authenticate successfully and log success', async () => {
+      cognitoMock.on(InitiateAuthCommand).resolves({
+        AuthenticationResult: {
+          IdToken: 'SUCCESS_ID_TOKEN',
+          RefreshToken: 'SUCCESS_REFRESH_TOKEN',
+        },
+      });
+
+      const { authenticate } = await import('../../utils/cognitoUtil');
+      const result = await authenticate('testUser', 'testPass');
+
+      expect(result).toEqual({
+        idToken: 'SUCCESS_ID_TOKEN',
+        refreshToken: 'SUCCESS_REFRESH_TOKEN',
+      });
     });
   });
 
@@ -445,6 +468,66 @@ describe('cognitoUtil tests', () => {
       await expect(resendConfirmationCode('badUser')).rejects.toThrow(
         NotFoundError,
       );
+    });
+  });
+  // ----------------------------------------------------------------------------
+  // TEST: refreshToken
+  // ----------------------------------------------------------------------------
+
+  describe('refreshToken()', () => {
+    const validRefreshToken = 'valid-refresh-token';
+
+    it('should refresh token successfully and return new IdToken', async () => {
+      cognitoMock.on(InitiateAuthCommand).resolves({
+        AuthenticationResult: {
+          IdToken: 'NEW_FAKE_ID_TOKEN',
+        },
+      });
+
+      const { refreshToken } = await import('../../utils/cognitoUtil');
+      const token = await refreshToken(validRefreshToken);
+
+      expect(token).toBe('NEW_FAKE_ID_TOKEN');
+      expect(getCachedParameter).toHaveBeenCalledWith(
+        process.env.SSM_COGNITO_CLIENT_ID!,
+      );
+    });
+
+    it('should throw AuthError if no IdToken is returned', async () => {
+      cognitoMock.on(InitiateAuthCommand).resolves({
+        AuthenticationResult: {},
+      });
+
+      const { refreshToken } = await import('../../utils/cognitoUtil');
+
+      await expect(refreshToken(validRefreshToken)).rejects.toThrow(AuthError);
+      await expect(refreshToken(validRefreshToken)).rejects.toThrow(
+        '❌ Refresh failed: No new token received',
+      );
+    });
+
+    it('should wrap unknown errors in BaseAppException', async () => {
+      cognitoMock.on(InitiateAuthCommand).rejects('non-error-value');
+
+      const { refreshToken } = await import('../../utils/cognitoUtil');
+
+      try {
+        await refreshToken(validRefreshToken);
+      } catch (error) {
+        const err = error as BaseAppException;
+        expect(err).toBeInstanceOf(BaseAppException);
+        expect(err.message).toBe('Refresh token failed');
+        expect(err.metadata).toBe('non-error-value');
+      }
+    });
+
+    it('should pass through custom AuthError', async () => {
+      const authErr = new AuthError('Refresh failed hard');
+      cognitoMock.on(InitiateAuthCommand).rejects(authErr);
+
+      const { refreshToken } = await import('../../utils/cognitoUtil');
+
+      await expect(refreshToken(validRefreshToken)).rejects.toBe(authErr);
     });
   });
 });

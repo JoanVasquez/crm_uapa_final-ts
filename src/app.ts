@@ -1,6 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
+import cors from 'cors';
 import { setupSwagger } from './swagger';
 import userRouter from './routes/user.router';
 import productRouter from './routes/product.router';
@@ -27,6 +28,12 @@ app.set('trust proxy', true);
 app.use(express.json());
 app.use(cookieParser());
 app.use(compression());
+app.use(
+  cors({
+    origin: 'http://localhost:3000',
+    credentials: true,
+  }),
+);
 app.use(limiter);
 
 // 📌 Routes

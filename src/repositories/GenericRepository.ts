@@ -172,30 +172,32 @@ export abstract class GenericRepository<T extends ObjectLiteral>
     }
   }
 
-  /**
-   * 📊 Retrieves entities with pagination.
-   *
-   * @param skip - Number of records to skip.
-   * @param take - Number of records to retrieve.
-   * @returns An object containing the paginated data and total count.
-   */
   async getEntitiesWithPagination(
-    skip: number,
-    take: number,
+    page: number,
+    perPage: number,
   ): Promise<{ data: T[]; count: number }> {
     try {
+      const skip = (page - 1) * perPage;
+      const take = perPage;
+
       const [data, count] = await this.repo.findAndCount({ skip, take });
+
       logger.info(
-        `✅ [GenericRepository] Retrieved ${data.length} records (Page size: ${take})`,
+        `✅ [GenericRepository] Retrieved ${data.length} records (Page: ${page}, PerPage: ${perPage})`,
       );
+
       return { data, count };
     } catch (error) {
       logger.error(
         `❌ [GenericRepository] Error fetching paginated entities:`,
-        { error },
+        {
+          error,
+        },
       );
+
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
+
       throw new DatabaseError(
         'Error fetching paginated entities',
         errorMessage,

@@ -44,17 +44,17 @@ export interface ICRUD<T> {
   findAll(): Promise<T[]>;
 
   /**
-   * 📊 Retrieves entities with pagination support.
-   * @param skip - The number of records to skip.
-   * @param take - The number of records to retrieve.
-   * @returns A promise resolving to an object containing:
-   *   - `data`: The retrieved entities.
-   *   - `count`: The total number of entities in the database.
+   * 📄 Retrieves paginated entities from the database.
+   * @param page - The current page number (1-based).
+   * @param perPage - The number of records per page.
+   * @returns A promise resolving to an object with:
+   *  - `data`: Array of entities for the current page.
+   *  - `count`: Total number of records available.
    */
-  findWithPagination(
+  findPaginated(
     // eslint-disable-next-line no-unused-vars
-    skip: number,
+    page: number,
     // eslint-disable-next-line no-unused-vars
-    take: number,
+    perPage: number,
   ): Promise<{ data: T[]; count: number }>;
 }

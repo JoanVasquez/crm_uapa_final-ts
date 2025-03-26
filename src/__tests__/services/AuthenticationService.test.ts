@@ -5,6 +5,7 @@ import {
   authenticate as cognitoAuthenticate,
   registerUser as cognitoRegisterUser,
   resendConfirmationCode as cognitoResendConfirmation,
+  refreshToken as cognitoRefreshToken,
 } from '../../utils/cognitoUtil';
 
 // Mock dependencies
@@ -21,7 +22,10 @@ describe('AuthenticationService', () => {
   const testUsername = 'testuser';
   const testPassword = 'TestPassword123!';
   const testEmail = 'test@example.com';
-  const testToken = 'mock-id-token';
+  const testToken = {
+    idToken: 'fake-jwt-token',
+    refreshToken: 'fake-refresh-token',
+  };
   const testConfirmationCode = '123456';
 
   beforeEach(() => {
@@ -78,7 +82,7 @@ describe('AuthenticationService', () => {
       );
 
       // Assert
-      expect(result).toBe(testToken);
+      expect(result).toStrictEqual(testToken);
       expect(cognitoAuthenticate).toHaveBeenCalledWith(
         testUsername,
         testPassword,
@@ -239,6 +243,33 @@ describe('AuthenticationService', () => {
       // Assert
       const logCalls = (logger.info as jest.Mock).mock.calls.flat();
       expect(logCalls.join(' ')).not.toContain(testPassword);
+    });
+  });
+  describe('refreshUserToken', () => {
+    const validRefreshToken = 'valid-refresh-token';
+
+    it('should refresh the token successfully', async () => {
+      (cognitoRefreshToken as jest.Mock).mockResolvedValue('new-id-token');
+
+      const result = await authService.refreshUserToken(validRefreshToken);
+
+      expect(result).toBe('new-id-token');
+      expect(cognitoRefreshToken).toHaveBeenCalledWith(validRefreshToken);
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Refreshing token for user with refresh token'),
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Token refreshed successfully'),
+      );
+    });
+
+    it('should throw error when refresh fails', async () => {
+      const error = new Error('Refresh failed');
+      (cognitoRefreshToken as jest.Mock).mockRejectedValue(error);
+
+      await expect(
+        authService.refreshUserToken(validRefreshToken),
+      ).rejects.toThrow('Refresh failed');
     });
   });
 });

@@ -116,11 +116,14 @@ export class UserService extends GenericService<User> {
   async authenticate(
     username: string,
     password: string,
-  ): Promise<{ token: string }> {
+  ): Promise<{ token: string; refreshToken: string }> {
     logger.info(`🔍 [UserService] Authenticating user: ${username}`);
 
     // 📡 Authenticate via Cognito
-    const token = await this.authService.authenticateUser(username, password);
+    const { idToken, refreshToken } = await this.authService.authenticateUser(
+      username,
+      password,
+    );
 
     // 🔄 Try loading user from cache
     const userData = await this.cache.get(`user:${username}`);
@@ -138,7 +141,19 @@ export class UserService extends GenericService<User> {
     logger.info(
       `✅ [UserService] User authenticated successfully: ${username}`,
     );
-    return { token };
+    return { token: idToken, refreshToken };
+  }
+
+  /**
+   * 🔄 Refreshes a user's authentication token.
+   * @param refreshToken - The refresh token.
+   * @returns A new authentication token.
+   */
+  async refreshUserToken(refreshToken: string): Promise<string> {
+    logger.info(`🔄 [UserService] Refreshing token for user: ${refreshToken}`);
+    const token = await this.authService.refreshUserToken(refreshToken);
+    logger.info(`✅ [UserService] Token refreshed successfully: ${token}`);
+    return token;
   }
 
   /**

@@ -4,6 +4,7 @@ import {
   authenticate as cognitoAuthenticate,
   registerUser as cognitoRegisterUser,
   resendConfirmationCode as cognitoResendConfirmation,
+  refreshToken as cognitoRefreshToken,
 } from '../utils/cognitoUtil';
 import { injectable } from 'tsyringe';
 
@@ -44,11 +45,35 @@ export class AuthenticationService {
    * @returns The authentication token (IdToken).
    * @throws {Error} If authentication fails.
    */
-  async authenticateUser(username: string, password: string): Promise<string> {
+  async authenticateUser(
+    username: string,
+    password: string,
+  ): Promise<{ idToken: string; refreshToken: string }> {
     logger.info(`🔐 [AuthenticationService] Authenticating user: ${username}`);
-    const token = await cognitoAuthenticate(username, password);
+    const { idToken, refreshToken } = await cognitoAuthenticate(
+      username,
+      password,
+    );
     logger.info(
       `✅ [AuthenticationService] User authenticated successfully: ${username}`,
+    );
+    return { idToken, refreshToken };
+  }
+
+  /**
+   * 🔄 Refreshes a user's token using a refresh token.
+   * @param refreshToken - The refresh token to use.
+   * @returns The new authentication token (IdToken).
+   * @throws {Error} If refreshing fails.
+   */
+
+  async refreshUserToken(refreshToken: string): Promise<string> {
+    logger.info(
+      `🔄 [AuthenticationService] Refreshing token for user with refresh token: ${refreshToken}`,
+    );
+    const token = await cognitoRefreshToken(refreshToken);
+    logger.info(
+      `✅ [AuthenticationService] Token refreshed successfully: ${token}`,
     );
     return token;
   }

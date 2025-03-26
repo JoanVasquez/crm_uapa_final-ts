@@ -62,7 +62,7 @@ const authController: AuthController = container.resolve(AuthController);
  *         description: Unauthorized
  */
 router.post(
-  '/user/registration',
+  '/user',
   verifyToken,
   authorize('admin'),
   userValidations,
@@ -296,5 +296,18 @@ router.post(
  *         description: Successfully logged out
  */
 router.post('/user/logout', authController.logout);
+
+/**
+ * @swagger
+ * /api/v1/user/refresh:
+ *   post:
+ *     summary: Refresh user session
+ *     tags: [Authentication]
+ *     description: Automatically re-authenticate a user using httpOnly cookie if the user is still active.
+ *     responses:
+ *       200:
+ *         description: Token refreshed successfully
+ */
+router.post('/user/refresh', authController.refreshToken);
 
 export default router;

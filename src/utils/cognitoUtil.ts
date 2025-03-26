@@ -19,30 +19,10 @@ import { RequestValidationError } from '../errors/RequestValidationError';
 import { NotFoundError } from '../errors/NotFoundError';
 import { CustomError } from '../errors/CustomError';
 
-/**
- * Below are some of the common Cognito exception names you might catch:
- *
- * - "UserNotFoundException"
- * - "NotAuthorizedException"
- * - "UsernameExistsException"
- * - "CodeMismatchException"
- * - "ExpiredCodeException"
- * - "InvalidParameterException"
- * - "ResourceNotFoundException"
- * - "LimitExceededException"
- * - "TooManyFailedAttemptsException"
- * - "TooManyRequestsException"
- * - "InvalidPasswordException"
- */
-
-// 🔑 Initialize Cognito client
 export const cognitoClient = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION,
 });
 
-/**
- * 🔐 Computes the secret hash required for Cognito authentication.
- */
 async function computeSecretHash(
   username: string,
   clientId: string,
@@ -55,23 +35,14 @@ async function computeSecretHash(
     .digest('base64');
 }
 
-/**
- * Converts AWS Cognito errors into your custom errors.
- */
 function mapCognitoErrorToCustomError(
   error: unknown,
   defaultMessage: string,
   defaultStatus: number,
 ): Error {
-  // 1) If it's *already* one of your CustomErrors, just return it as-is
-  if (error instanceof CustomError) {
-    return error;
-  }
-
-  // 2) If it's not even an Error, wrap it in BaseAppException
-  if (!(error instanceof Error)) {
+  if (error instanceof CustomError) return error;
+  if (!(error instanceof Error))
     return new BaseAppException(defaultMessage, defaultStatus, String(error));
-  }
 
   switch (error.name) {
     case 'NotAuthorizedException':
@@ -95,18 +66,14 @@ function mapCognitoErrorToCustomError(
         error.message,
       );
     default:
-      // If we got here, throw a more generic error
       return new BaseAppException(defaultMessage, defaultStatus, error.message);
   }
 }
 
-/**
- * 🔑 Authenticates a user in Cognito.
- */
 async function authenticate(
   username: string,
   password: string,
-): Promise<string> {
+): Promise<{ idToken: string; refreshToken: string }> {
   try {
     const clientId = await getCachedParameter(
       process.env.SSM_COGNITO_CLIENT_ID!,
@@ -132,26 +99,52 @@ async function authenticate(
 
     const response = await cognitoClient.send(command);
 
-    if (!response.AuthenticationResult?.IdToken) {
-      throw new AuthError('❌ Authentication failed: No token received');
+    const idToken = response.AuthenticationResult?.IdToken;
+    const refreshToken = response.AuthenticationResult?.RefreshToken;
+
+    if (!idToken || !refreshToken) {
+      throw new AuthError('❌ Authentication failed: Token(s) missing');
     }
 
     logger.info(`✅ User authenticated successfully: ${username}`);
-    return response.AuthenticationResult.IdToken;
+    return { idToken, refreshToken };
   } catch (error) {
     logger.error(
       `❌ [CognitoService] Authentication failed for user: ${username}`,
       { error },
     );
-
-    // Convert AWS error to our AuthError or fallback
     throw mapCognitoErrorToCustomError(error, 'Authentication failed', 401);
   }
 }
 
-/**
- * 📝 Registers a new user in Cognito.
- */
+async function refreshToken(refreshToken: string): Promise<string> {
+  try {
+    const clientId = await getCachedParameter(
+      process.env.SSM_COGNITO_CLIENT_ID!,
+    );
+
+    const command = new InitiateAuthCommand({
+      AuthFlow: 'REFRESH_TOKEN_AUTH',
+      ClientId: clientId,
+      AuthParameters: {
+        REFRESH_TOKEN: refreshToken,
+      },
+    });
+
+    const response = await cognitoClient.send(command);
+
+    if (!response.AuthenticationResult?.IdToken) {
+      throw new AuthError('❌ Refresh failed: No new token received');
+    }
+
+    logger.info('🔄 [AuthenticationService] Token refreshed successfully');
+    return response.AuthenticationResult.IdToken;
+  } catch (error) {
+    logger.error('❌ [AuthenticationService] Refresh failed', { error });
+    throw mapCognitoErrorToCustomError(error, 'Refresh token failed', 401);
+  }
+}
+
 async function registerUser(
   username: string,
   password: string,
@@ -185,15 +178,10 @@ async function registerUser(
       `❌ [CognitoService] Registration failed for user: ${username}`,
       { error },
     );
-
-    // Convert AWS error to our custom error or fallback
     throw mapCognitoErrorToCustomError(error, 'Registration failed', 500);
   }
 }
 
-/**
- * 📩 Confirms user registration using a verification code.
- */
 async function confirmUserRegistration(
   username: string,
   confirmationCode: string,
@@ -225,14 +213,10 @@ async function confirmUserRegistration(
       `❌ [CognitoService] Confirmation failed for user: ${username}`,
       { error },
     );
-
     throw mapCognitoErrorToCustomError(error, 'User confirmation failed', 500);
   }
 }
 
-/**
- * 🔄 Initiates a password reset request.
- */
 async function initiatePasswordReset(username: string): Promise<void> {
   try {
     const clientId = await getCachedParameter(
@@ -258,11 +242,8 @@ async function initiatePasswordReset(username: string): Promise<void> {
   } catch (error) {
     logger.error(
       `❌ [CognitoService] Password reset initiation failed for user: ${username}`,
-      {
-        error,
-      },
+      { error },
     );
-
     throw mapCognitoErrorToCustomError(
       error,
       'Password reset initiation failed',
@@ -271,9 +252,6 @@ async function initiatePasswordReset(username: string): Promise<void> {
   }
 }
 
-/**
- * 🔑 Completes the password reset process.
- */
 async function completePasswordReset(
   username: string,
   newPassword: string,
@@ -307,14 +285,10 @@ async function completePasswordReset(
       `❌ [CognitoService] Password reset failed for user: ${username}`,
       { error },
     );
-
     throw mapCognitoErrorToCustomError(error, 'Password reset failed', 500);
   }
 }
 
-/**
- * 🔄 Resends the confirmation code to a user.
- */
 async function resendConfirmationCode(username: string): Promise<void> {
   try {
     const clientId = await getCachedParameter(
@@ -340,11 +314,8 @@ async function resendConfirmationCode(username: string): Promise<void> {
   } catch (error) {
     logger.error(
       `❌ [CognitoService] Failed to resend confirmation code for user: ${username}`,
-      {
-        error,
-      },
+      { error },
     );
-
     throw mapCognitoErrorToCustomError(
       error,
       'Resending confirmation code failed',
@@ -355,6 +326,7 @@ async function resendConfirmationCode(username: string): Promise<void> {
 
 export {
   authenticate,
+  refreshToken,
   registerUser,
   confirmUserRegistration,
   initiatePasswordReset,

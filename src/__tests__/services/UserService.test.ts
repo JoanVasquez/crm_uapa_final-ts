@@ -68,6 +68,7 @@ describe('UserService', () => {
       confirmUserRegistration: jest.fn(),
       resendConfirmationCode: jest.fn(),
       authenticateUser: jest.fn(),
+      refreshUserToken: jest.fn(),
     } as unknown as jest.Mocked<AuthenticationService>;
 
     // Mocked PasswordService
@@ -262,7 +263,11 @@ describe('UserService', () => {
   describe('authenticate', () => {
     it('should authenticate a user successfully (cache miss, DB hit)', async () => {
       // Arrange
-      mockAuthService.authenticateUser.mockResolvedValue('fake-jwt-token');
+      mockAuthService.authenticateUser.mockResolvedValue({
+        idToken: 'fake-jwt-token',
+        refreshToken: 'fake-refresh-token',
+      });
+
       // user not in cache
       mockCache.get.mockResolvedValue(null);
       // user found in DB
@@ -275,7 +280,11 @@ describe('UserService', () => {
       );
 
       // Assert
-      expect(result).toEqual({ token: 'fake-jwt-token' });
+      expect(result).toEqual({
+        token: 'fake-jwt-token',
+        refreshToken: 'fake-refresh-token',
+      });
+
       expect(mockAuthService.authenticateUser).toHaveBeenCalledWith(
         testUser.username,
         'some-password',
@@ -295,7 +304,11 @@ describe('UserService', () => {
     });
 
     it('should authenticate a user successfully (cache hit)', async () => {
-      mockAuthService.authenticateUser.mockResolvedValue('fake-jwt-token');
+      mockAuthService.authenticateUser.mockResolvedValue({
+        idToken: 'fake-jwt-token',
+        refreshToken: 'fake-refresh-token',
+      });
+
       // user found in cache
       mockCache.get.mockResolvedValue(JSON.stringify(testUser));
 
@@ -304,7 +317,11 @@ describe('UserService', () => {
         'some-password',
       );
 
-      expect(result).toEqual({ token: 'fake-jwt-token' });
+      expect(result).toEqual({
+        token: 'fake-jwt-token',
+        refreshToken: 'fake-refresh-token',
+      });
+
       expect(mockAuthService.authenticateUser).toHaveBeenCalledWith(
         testUser.username,
         'some-password',
@@ -316,7 +333,11 @@ describe('UserService', () => {
     });
 
     it('should throw NotFoundError if user not found in DB', async () => {
-      mockAuthService.authenticateUser.mockResolvedValue('fake-jwt-token');
+      mockAuthService.authenticateUser.mockResolvedValue({
+        idToken: 'fake-jwt-token',
+        refreshToken: 'fake-refresh-token',
+      });
+
       mockCache.get.mockResolvedValue(null);
       mockUserRepository.findUserByUsername.mockResolvedValue(null);
 
@@ -482,6 +503,30 @@ describe('UserService', () => {
       expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('User not found in database'),
       );
+    });
+  });
+  describe('refreshUserToken', () => {
+    it('should refresh the token successfully', async () => {
+      mockAuthService.refreshUserToken.mockResolvedValue('new-id-token');
+
+      const result = await userService.refreshUserToken('valid-refresh-token');
+
+      expect(result).toBe('new-id-token');
+      expect(mockAuthService.refreshUserToken).toHaveBeenCalledWith(
+        'valid-refresh-token',
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Token refreshed successfully'),
+      );
+    });
+
+    it('should propagate errors from authService', async () => {
+      const error = new Error('Refresh failed');
+      mockAuthService.refreshUserToken.mockRejectedValue(error);
+
+      await expect(
+        userService.refreshUserToken('invalid-token'),
+      ).rejects.toThrow(error);
     });
   });
 });

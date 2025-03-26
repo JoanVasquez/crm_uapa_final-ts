@@ -4,6 +4,7 @@ import ResponseTemplate from '../utils/response.template';
 import { UserService } from '../services/UserService';
 import httpStatus from '../utils/http.status';
 import logger from '../utils/logger';
+import { RequestValidationError } from '../errors/RequestValidationError';
 
 /**
  * 🔐 AuthController - Handles user authentication and account actions.
@@ -39,22 +40,76 @@ export default class AuthController {
         maxAge: 3600000,
       });
 
-      res
-        .status(httpStatus.OK.code)
-        .send(
-          new ResponseTemplate(
-            httpStatus.OK.code,
-            'OK',
-            'Authentication successful',
-            result,
-          ),
-        );
+      res.cookie('refreshToken', result?.refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      res.status(httpStatus.OK.code).send(
+        new ResponseTemplate(
+          httpStatus.OK.code,
+          'OK',
+          'Authentication successful',
+          {
+            token: result?.token,
+            refreshToken: result?.refreshToken,
+          },
+        ),
+      );
       logger.info(`✅ [AuthController] User authenticated: ${username}`);
     } catch (error) {
       logger.error(
         `❌ [AuthController] Login failed for user: ${req.body.username}`,
         { error },
       );
+      next(error);
+    }
+  };
+
+  /**
+   * 🔁 Refreshes the user's token using a refresh token.
+   * - Returns a new ID token.
+   */
+  refreshToken = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const { refreshToken } = req.body;
+
+      if (!refreshToken) {
+        throw new RequestValidationError('Refresh token is required.');
+      }
+
+      logger.info('🔄 [AuthController] Refresh token request received');
+
+      const newToken = await this.userService?.refreshUserToken(refreshToken);
+
+      // Set new token in HTTP-only cookie
+      res.cookie('token', newToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 3600000, // 1 hour
+      });
+
+      res
+        .status(httpStatus.OK.code)
+        .send(
+          new ResponseTemplate(
+            httpStatus.OK.code,
+            httpStatus.OK.status,
+            'Token refreshed successfully',
+            { token: newToken },
+          ),
+        );
+
+      logger.info('✅ [AuthController] Token refreshed and returned to client');
+    } catch (error) {
+      logger.error('❌ [AuthController] Failed to refresh token', { error });
       next(error);
     }
   };

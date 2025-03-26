@@ -49,7 +49,7 @@ export class User {
    * ✅ Account Status - Determines if the user is active.
    * - Defaults to `true` (active).
    */
-  @Column({ type: 'boolean', default: true })
+  @Column({ type: 'boolean', default: false })
   is_active!: boolean;
 
   /**
