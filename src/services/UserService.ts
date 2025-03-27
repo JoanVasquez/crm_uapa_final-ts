@@ -91,6 +91,16 @@ export class UserService extends GenericService<User> {
     username: string,
     confirmationCode: string,
   ): Promise<string> {
+    logger.info(`📩 [UserService] Confirming user registration: ${username}`);
+
+    const user = await this.userRepository.findUserByUsername(username);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    await this.userRepository.updateEntity(user.id, { is_active: true });
+
+    logger.info(`📡 [UserService] Confirming user registration via Cognito`);
+
     await this.authService.confirmUserRegistration(username, confirmationCode);
     logger.info(`✅ [UserService] User registration confirmed: ${username}`);
     return 'User confirmed successfully';

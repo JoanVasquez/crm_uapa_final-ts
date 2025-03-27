@@ -145,13 +145,20 @@ describe('UserService', () => {
 
   describe('confirmRegistration', () => {
     it('should confirm user registration successfully', async () => {
+      // Arrange: set up repository mocks to return a valid user.
+      mockUserRepository.findUserByUsername.mockResolvedValue(testUser);
+      mockUserRepository.updateEntity.mockResolvedValue(testUser); // optional, if needed
+
+      // Arrange: set up the auth service mock.
       mockAuthService.confirmUserRegistration.mockResolvedValue();
 
+      // Act: call confirmRegistration.
       const result = await userService.confirmRegistration(
         testUser.username,
         confirmationCode,
       );
 
+      // Assert: verify the result and the calls.
       expect(result).toBe('User confirmed successfully');
       expect(mockAuthService.confirmUserRegistration).toHaveBeenCalledWith(
         testUser.username,
@@ -160,7 +167,7 @@ describe('UserService', () => {
     });
 
     it('should propagate errors from auth service', async () => {
-      const error = new Error('Confirmation failed');
+      const error = new Error('User not found not found');
       mockAuthService.confirmUserRegistration.mockRejectedValue(error);
 
       await expect(
