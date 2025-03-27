@@ -1,5 +1,5 @@
 import { DataSource, Repository } from 'typeorm';
-import { Sell } from '../../models/Sell';
+import { Sale } from '../../models/Sale';
 import { SellRepository } from '../../repositories/SellRepository';
 import logger from '../../utils/logger';
 
@@ -16,9 +16,9 @@ jest.mock('tsyringe', () => ({
 describe('SellRepository', () => {
   let sellRepository: SellRepository;
   let mockDataSource: jest.Mocked<DataSource>;
-  let mockRepository: jest.Mocked<Repository<Sell>>;
+  let mockRepository: jest.Mocked<Repository<Sale>>;
 
-  const testSell: Sell = {
+  const testSale: Sale = {
     id: 1,
     bill: {
       id: 1,
@@ -31,7 +31,7 @@ describe('SellRepository', () => {
       },
       date: new Date(),
       total_amount: 100,
-      sells: [],
+      sales: [],
     },
     product: {
       id: 1,
@@ -39,7 +39,7 @@ describe('SellRepository', () => {
       description: 'Sample product',
       price: 19.99,
       available_quantity: 100,
-      sells: [],
+      sales: [],
     },
     quantity: 2,
     sale_price: 39.98,
@@ -57,7 +57,7 @@ describe('SellRepository', () => {
       delete: jest.fn(),
       find: jest.fn(),
       findAndCount: jest.fn(),
-    } as unknown as jest.Mocked<Repository<Sell>>;
+    } as unknown as jest.Mocked<Repository<Sale>>;
 
     // Create mock data source
     mockDataSource = {
@@ -70,7 +70,7 @@ describe('SellRepository', () => {
 
   describe('constructor', () => {
     it('should initialize repository correctly', () => {
-      expect(mockDataSource.getRepository).toHaveBeenCalledWith(Sell);
+      expect(mockDataSource.getRepository).toHaveBeenCalledWith(Sale);
       expect(logger.info).toHaveBeenCalledWith(
         '✅ [SellRepository] Initialized SellRepository',
       );
@@ -80,14 +80,14 @@ describe('SellRepository', () => {
   describe('createEntity', () => {
     it('should create a new sell entity successfully', async () => {
       // Arrange
-      mockRepository.save.mockResolvedValue(testSell);
+      mockRepository.save.mockResolvedValue(testSale);
 
       // Act
-      const result = await sellRepository.createEntity(testSell);
+      const result = await sellRepository.createEntity(testSale);
 
       // Assert
-      expect(result).toEqual(testSell);
-      expect(mockRepository.save).toHaveBeenCalledWith(testSell);
+      expect(result).toEqual(testSale);
+      expect(mockRepository.save).toHaveBeenCalledWith(testSale);
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Created new entity'),
       );
@@ -96,7 +96,7 @@ describe('SellRepository', () => {
     it('should handle errors when creating a sell entity', async () => {
       mockRepository.save.mockRejectedValue(new Error('Database error'));
 
-      await expect(sellRepository.createEntity(testSell)).rejects.toThrow(
+      await expect(sellRepository.createEntity(testSale)).rejects.toThrow(
         'Error creating entity',
       );
 
@@ -106,13 +106,13 @@ describe('SellRepository', () => {
 
   describe('findEntityById', () => {
     it('should find a sell entity by ID successfully', async () => {
-      mockRepository.findOneBy.mockResolvedValue(testSell);
+      mockRepository.findOneBy.mockResolvedValue(testSale);
 
-      const result = await sellRepository.findEntityById(testSell.id);
+      const result = await sellRepository.findEntityById(testSale.id);
 
-      expect(result).toEqual(testSell);
+      expect(result).toEqual(testSale);
       expect(mockRepository.findOneBy).toHaveBeenCalledWith({
-        id: testSell.id,
+        id: testSale.id,
       });
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Retrieved entity with ID'),
@@ -122,7 +122,7 @@ describe('SellRepository', () => {
     it('should handle errors when querying the database', async () => {
       mockRepository.findOneBy.mockRejectedValue(new Error('DB error'));
 
-      await expect(sellRepository.findEntityById(testSell.id)).rejects.toThrow(
+      await expect(sellRepository.findEntityById(testSale.id)).rejects.toThrow(
         'Error finding entity',
       );
 
@@ -134,17 +134,17 @@ describe('SellRepository', () => {
     it('should update a sell entity successfully', async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
-      mockRepository.findOneBy.mockResolvedValue(testSell);
+      mockRepository.findOneBy.mockResolvedValue(testSale);
 
       const updatedData = { quantity: 5 };
       const result = await sellRepository.updateEntity(
-        testSell.id,
+        testSale.id,
         updatedData,
       );
 
-      expect(result).toEqual(testSell);
+      expect(result).toEqual(testSale);
       expect(mockRepository.update).toHaveBeenCalledWith(
-        testSell.id,
+        testSale.id,
         updatedData,
       );
     });
@@ -168,10 +168,10 @@ describe('SellRepository', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockRepository.delete.mockResolvedValue({ affected: 1 } as any);
 
-      const result = await sellRepository.deleteEntity(testSell.id);
+      const result = await sellRepository.deleteEntity(testSale.id);
 
       expect(result).toBe(true);
-      expect(mockRepository.delete).toHaveBeenCalledWith(testSell.id);
+      expect(mockRepository.delete).toHaveBeenCalledWith(testSale.id);
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Deleted entity with ID'),
       );
@@ -193,11 +193,11 @@ describe('SellRepository', () => {
 
   describe('getAllEntities', () => {
     it('should return all sell entities', async () => {
-      mockRepository.find.mockResolvedValue([testSell]);
+      mockRepository.find.mockResolvedValue([testSale]);
 
       const result = await sellRepository.getAllEntities();
 
-      expect(result).toEqual([testSell]);
+      expect(result).toEqual([testSale]);
       expect(mockRepository.find).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Retrieved all entities'),
@@ -217,7 +217,7 @@ describe('SellRepository', () => {
 
   describe('getEntitiesWithPagination', () => {
     it('should return paginated sell entities', async () => {
-      mockRepository.findAndCount.mockResolvedValue([[testSell], 1]);
+      mockRepository.findAndCount.mockResolvedValue([[testSale], 1]);
 
       const page = 1;
       const perPage = 10;
@@ -228,7 +228,7 @@ describe('SellRepository', () => {
         perPage,
       );
 
-      expect(result).toEqual({ data: [testSell], count: 1 });
+      expect(result).toEqual({ data: [testSale], count: 1 });
       expect(mockRepository.findAndCount).toHaveBeenCalledWith({
         skip: expectedSkip,
         take: perPage,

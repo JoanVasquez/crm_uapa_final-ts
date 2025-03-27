@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Sell } from '../models/Sell';
+import { Sale } from '../models/Sale';
 import logger from '../utils/logger';
 import { GenericRepository } from './GenericRepository';
 import { inject, injectable } from 'tsyringe';
@@ -10,13 +10,13 @@ import { inject, injectable } from 'tsyringe';
  * - Implements custom queries such as `findSalesByBillId`.
  */
 @injectable()
-export class SellRepository extends GenericRepository<Sell> {
+export class SellRepository extends GenericRepository<Sale> {
   /**
    * 🏗️ Constructor - Injects the TypeORM `DataSource` instance.
    * @param dataSource - The database connection instance.
    */
   constructor(@inject('DataSourceToken') dataSource: DataSource) {
-    super(dataSource, Sell);
+    super(dataSource, Sale);
     logger.info('✅ [SellRepository] Initialized SellRepository');
   }
 }

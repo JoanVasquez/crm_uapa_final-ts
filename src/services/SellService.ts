@@ -1,4 +1,4 @@
-import { Sell } from '../models/Sell';
+import { Sale } from '../models/Sale';
 import { Bill } from '../models/Bill';
 import { Customer } from '../models/Customer';
 import { SellRepository } from '../repositories/SellRepository';
@@ -15,7 +15,7 @@ import { sendEmail } from '../utils/sesUtil'; // SES utility
 import { customer_receipt } from '../email_templates/templates'; // hypothetical utility to format bill
 
 @injectable()
-export class SellService extends GenericService<Sell> {
+export class SellService extends GenericService<Sale> {
   constructor(
     @inject('Cache') protected readonly cache: Cache,
     @inject('SellRepository') private readonly sellRepository: SellRepository,
@@ -24,7 +24,7 @@ export class SellService extends GenericService<Sell> {
     private readonly customerRepository: CustomerRepository,
     @inject('ProductService') private readonly productService: ProductService,
   ) {
-    super(cache, sellRepository, Sell);
+    super(cache, sellRepository, Sale);
     logger.info('✅ [SellService] Initialized SellService');
     this.sellRepository = sellRepository;
     this.billRepository = billRepository;
@@ -48,7 +48,7 @@ export class SellService extends GenericService<Sell> {
     const newBill = new Bill();
     newBill.customer = savedCustomer!;
     newBill.total_amount = 0;
-    newBill.sells = [];
+    newBill.sales = [];
 
     const savedBill = await this.billRepository.createEntity(newBill);
 
@@ -62,14 +62,14 @@ export class SellService extends GenericService<Sell> {
         );
       }
 
-      const newSell = new Sell();
-      newSell.bill = savedBill!;
-      newSell.product = product;
-      newSell.quantity = sale.quantity;
-      newSell.sale_price = sale.salePrice;
+      const newSale = new Sale();
+      newSale.bill = savedBill!;
+      newSale.product = product;
+      newSale.quantity = sale.quantity;
+      newSale.sale_price = sale.salePrice;
 
-      await this.sellRepository.createEntity(newSell);
-      newBill.sells.push(newSell);
+      await this.sellRepository.createEntity(newSale);
+      newBill.sales.push(newSale);
 
       totalAmount += sale.quantity * sale.salePrice;
 

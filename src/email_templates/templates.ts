@@ -14,7 +14,7 @@ export const customer_receipt = (bill: Bill): string => {
   const billId = bill.id;
   const totalAmount = bill.total_amount;
 
-  const sales = bill.sells.map((sell) => ({
+  const sales = bill.sales.map((sell) => ({
     productName: sell.product.name,
     quantity: sell.quantity,
     salePrice: sell.sale_price,

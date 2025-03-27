@@ -6,7 +6,7 @@ import {
   OneToMany,
   CreateDateColumn,
 } from 'typeorm';
-import { Sell } from './Sell';
+import { Sale } from './Sale';
 import { Customer } from './Customer';
 
 /**
@@ -47,6 +47,6 @@ export class Bill {
    * 📦 Sales - List of sales associated with this bill.
    * - Uses cascade to ensure related sales are properly managed.
    */
-  @OneToMany(() => Sell, (sell) => sell.bill, { cascade: true })
-  sells!: Sell[];
+  @OneToMany(() => Sale, (sale) => sale.bill, { cascade: true })
+  sales!: Sale[];
 }

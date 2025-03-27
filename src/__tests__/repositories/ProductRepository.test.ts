@@ -26,7 +26,7 @@ describe('ProductRepository', () => {
     description: 'A sample product for testing',
     price: 19.99,
     available_quantity: 100,
-    sells: [],
+    sales: [],
   };
 
   beforeEach(() => {

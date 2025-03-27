@@ -25,7 +25,7 @@ import { BillService } from './services/BillService';
 import { Bill } from './models/Bill';
 import { Customer } from './models/Customer';
 import { CustomerService } from './services/CustomerService';
-import { Sell } from './models/Sell';
+import { Sale } from './models/Sale';
 import { SellService } from './services/SellService';
 
 /**
@@ -64,7 +64,7 @@ export async function registerDependencies(): Promise<void> {
     container.register<ICRUD<Customer>>('CustomerService', {
       useClass: CustomerService,
     });
-    container.register<ICRUD<Sell>>('SellService', { useClass: SellService });
+    container.register<ICRUD<Sale>>('SellService', { useClass: SellService });
     container.register<ICRUD<Product>>('ProductService', {
       useClass: ProductService,
     });

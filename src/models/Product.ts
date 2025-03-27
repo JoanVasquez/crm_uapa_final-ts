@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { Sell } from './Sell';
+import { Sale } from './Sale';
 
 /**
  * 📦 Product Entity - Represents a product in the inventory.
@@ -44,6 +44,6 @@ export class Product {
    * 🛍️ Sales - List of sales transactions related to this product.
    * - Uses cascade to ensure related sales are properly managed.
    */
-  @OneToMany(() => Sell, (sell) => sell.product, { cascade: true })
-  sells!: Sell[];
+  @OneToMany(() => Sale, (sale) => sale.product, { cascade: true })
+  sales!: Sale[];
 }

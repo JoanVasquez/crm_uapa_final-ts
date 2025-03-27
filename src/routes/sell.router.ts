@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import SellController from '../controllers/SellController';
 import { container } from 'tsyringe';
-import { paginationValidation } from '../utils/inputValidation';
+import { paginationValidation, sellValidation } from '../utils/inputValidation';
 import { validateRequest } from '../middlewares/error-handler';
 import { verifyToken } from '../middlewares/verifyCognitoToken';
 
@@ -73,7 +73,13 @@ const sellController: SellController = container.resolve(SellController);
  *       500:
  *         description: Internal server error
  */
-router.post('/sell', verifyToken, validateRequest, sellController.processSale);
+router.post(
+  '/sell',
+  verifyToken,
+  sellValidation,
+  validateRequest,
+  sellController.processSale,
+);
 
 /**
  * @swagger

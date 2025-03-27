@@ -24,7 +24,7 @@ describe('BillRepository', () => {
     customer: { id: 1 } as any,
     date: new Date(),
     total_amount: 50.0,
-    sells: [],
+    sales: [],
   };
 
   beforeEach(() => {

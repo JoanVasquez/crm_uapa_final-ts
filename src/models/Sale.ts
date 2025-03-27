@@ -6,8 +6,8 @@ import { Product } from './Product';
  * 🛍️ Sell Entity - Represents a sales transaction.
  * - Stores details of the bill, product sold, quantity, and sale price.
  */
-@Entity('sells')
-export class Sell {
+@Entity('sales')
+export class Sale {
   /**
    * 🔑 Primary Key - Auto-generated unique identifier for the sale.
    */
@@ -18,14 +18,14 @@ export class Sell {
    * 🧾 Bill - The bill associated with this sale.
    * - Required relationship (`nullable: false`).
    */
-  @ManyToOne(() => Bill, (bill) => bill.sells, { nullable: false })
+  @ManyToOne(() => Bill, (bill) => bill.sales, { nullable: false })
   bill!: Bill;
 
   /**
    * 📦 Product - The product being sold.
    * - Required relationship (`nullable: false`).
    */
-  @ManyToOne(() => Product, (product) => product.sells, { nullable: false })
+  @ManyToOne(() => Product, (product) => product.sales, { nullable: false })
   product!: Product;
 
   /**

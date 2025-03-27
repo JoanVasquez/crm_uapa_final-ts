@@ -4,7 +4,7 @@ import ResponseTemplate from '../utils/response.template';
 import { SellService } from '../services/SellService';
 import httpStatus from '../utils/http.status';
 import logger from '../utils/logger';
-import { Sell } from '../models/Sell';
+import { Sale } from '../models/Sale';
 import { ICRUD } from '../services/ICRUD';
 import BaseController from './BaseController';
 
@@ -16,11 +16,15 @@ import BaseController from './BaseController';
 @autoInjectable()
 export default class SellController extends BaseController {
   constructor(
-    @inject('SellService') protected sellService?: ICRUD<Sell>,
+    @inject('SellService') protected sellService?: ICRUD<Sale>,
     @inject('SellServiceImpl') private readonly sellServiceImpl?: SellService,
   ) {
     super(sellService!);
     this.sellServiceImpl = sellServiceImpl;
+
+    delete this.save;
+    delete this.update;
+    delete this.delete;
   }
 
   /**

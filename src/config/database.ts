@@ -2,7 +2,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { User } from '../models/User';
 import { Product } from '../models/Product';
 import { Bill } from '../models/Bill';
-import { Sell } from '../models/Sell';
+import { Sale } from '../models/Sale';
 import { getParameterDirect } from '../utils/ssmUtil';
 import logger from '../utils/logger';
 import { BaseAppException } from '../errors/BaseAppException';
@@ -37,7 +37,7 @@ export async function getAppDataSource(): Promise<DataSource> {
     dataSourceOptions = {
       type: 'sqlite',
       database: ':memory:',
-      entities: [User, Customer, Product, Bill, Sell],
+      entities: [User, Customer, Product, Bill, Sale],
       synchronize: false,
     };
     logger.info('🛠️ [Database] Using in-memory SQLite for testing.');
@@ -68,7 +68,7 @@ export async function getAppDataSource(): Promise<DataSource> {
         username,
         password,
         database,
-        entities: [User, Customer, Product, Bill, Sell],
+        entities: [User, Customer, Product, Bill, Sale],
         synchronize: true, // ⚠️ Auto-migration enabled (use cautiously in production)
       };
 
