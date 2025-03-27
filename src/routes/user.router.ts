@@ -147,6 +147,23 @@ router.get(
 
 /**
  * @swagger
+ * /api/v1/user/lookup/username:
+ *   get:
+ *     summary: Get user by username
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User data
+ *       404:
+ *         description: User not found
+ */
+
+router.get('/user/lookup/username', verifyToken, userController.findByUsername);
+
+/**
+ * @swagger
  * /api/v1/user/login:
  *   post:
  *     summary: User login

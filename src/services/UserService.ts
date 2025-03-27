@@ -44,34 +44,39 @@ export class UserService extends GenericService<User> {
   async save(entity: User): Promise<User | null> {
     logger.info(`🔍 [UserService] Registering user: ${entity.username}`);
 
-    // Validate username format
     if (!/^[\w-]+$/.test(entity.username)) {
       throw new RequestValidationError(
         'Username can only contain letters, numbers, underscores, or dashes.',
       );
     }
 
-    // 🔒 Encrypt the password
-    entity.password = await this.passwordService.getPasswordEncrypted(
+    const encryptedPassword = await this.passwordService.getPasswordEncrypted(
       entity.password,
     );
     logger.info('🔐 [UserService] Password encrypted.');
 
-    // 📡 Register the user in Cognito
+    const user = await this.userRepository.createEntity({
+      ...entity,
+      password: encryptedPassword,
+    });
+    if (!user) throw new BaseAppException('User registration failed.');
+
+    const cacheKey = `user:${user.username}`;
+    await this.cache.set(cacheKey, JSON.stringify(user), 3600);
+    logger.info(`✅ [UserService] User cached successfully: ${cacheKey}`);
+
     await this.authService.registerUser(
       entity.username,
       entity.password,
       entity.email,
     );
 
-    // 💾 Save in Database
-    const user = await this.userRepository.createEntity(entity);
-    if (!user) throw new BaseAppException('User registration failed.');
+    // 👇 REFRESH CACHE
+    await super.refreshAllAndPaginationCache();
 
-    // 🔄 Cache the user
-    const cacheKey = `user:${user.username}`;
-    await this.cache.set(cacheKey, JSON.stringify(user), 3600);
-    logger.info(`✅ [UserService] User cached successfully: ${cacheKey}`);
+    logger.info(
+      `✅ [UserService] User registered successfully: ${user.username}`,
+    );
 
     return user;
   }
@@ -149,9 +154,15 @@ export class UserService extends GenericService<User> {
    * @param refreshToken - The refresh token.
    * @returns A new authentication token.
    */
-  async refreshUserToken(refreshToken: string): Promise<string> {
+  async refreshUserToken(
+    username: string,
+    refreshToken: string,
+  ): Promise<string> {
     logger.info(`🔄 [UserService] Refreshing token for user: ${refreshToken}`);
-    const token = await this.authService.refreshUserToken(refreshToken);
+    const token = await this.authService.refreshUserToken(
+      username,
+      refreshToken,
+    );
     logger.info(`✅ [UserService] Token refreshed successfully: ${token}`);
     return token;
   }

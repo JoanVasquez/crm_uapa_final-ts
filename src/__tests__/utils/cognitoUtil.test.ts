@@ -485,7 +485,7 @@ describe('cognitoUtil tests', () => {
       });
 
       const { refreshToken } = await import('../../utils/cognitoUtil');
-      const token = await refreshToken(validRefreshToken);
+      const token = await refreshToken('test', validRefreshToken);
 
       expect(token).toBe('NEW_FAKE_ID_TOKEN');
       expect(getCachedParameter).toHaveBeenCalledWith(
@@ -500,8 +500,10 @@ describe('cognitoUtil tests', () => {
 
       const { refreshToken } = await import('../../utils/cognitoUtil');
 
-      await expect(refreshToken(validRefreshToken)).rejects.toThrow(AuthError);
-      await expect(refreshToken(validRefreshToken)).rejects.toThrow(
+      await expect(refreshToken('test', validRefreshToken)).rejects.toThrow(
+        AuthError,
+      );
+      await expect(refreshToken('test', validRefreshToken)).rejects.toThrow(
         '❌ Refresh failed: No new token received',
       );
     });
@@ -512,7 +514,7 @@ describe('cognitoUtil tests', () => {
       const { refreshToken } = await import('../../utils/cognitoUtil');
 
       try {
-        await refreshToken(validRefreshToken);
+        await refreshToken('test', validRefreshToken);
       } catch (error) {
         const err = error as BaseAppException;
         expect(err).toBeInstanceOf(BaseAppException);
@@ -527,7 +529,9 @@ describe('cognitoUtil tests', () => {
 
       const { refreshToken } = await import('../../utils/cognitoUtil');
 
-      await expect(refreshToken(validRefreshToken)).rejects.toBe(authErr);
+      await expect(refreshToken('test', validRefreshToken)).rejects.toBe(
+        authErr,
+      );
     });
   });
 });

@@ -60,6 +60,11 @@ describe('UserService', () => {
       findUserByUsername: jest.fn(),
       updateEntity: jest.fn(),
       deleteEntity: jest.fn(),
+      getAllEntities: jest.fn().mockResolvedValue([testUser]),
+      getEntitiesWithPagination: jest.fn().mockResolvedValue({
+        data: [testUser],
+        count: 1,
+      }),
     } as unknown as jest.Mocked<UserRepository>;
 
     // Mocked AuthService
@@ -196,11 +201,11 @@ describe('UserService', () => {
       await expect(userService.save(testUser)).rejects.toThrow(error);
     });
 
-    it('should handle Cognito registration failures', async () => {
+    it('should handle registration failures', async () => {
       mockPasswordService.getPasswordEncrypted.mockResolvedValue(
         encryptedPassword,
       );
-      const error = new Error('Cognito registration failed');
+      const error = new Error('User registration failed.');
       mockAuthService.registerUser.mockRejectedValue(error);
 
       await expect(userService.save(testUser)).rejects.toThrow(error);
@@ -509,10 +514,14 @@ describe('UserService', () => {
     it('should refresh the token successfully', async () => {
       mockAuthService.refreshUserToken.mockResolvedValue('new-id-token');
 
-      const result = await userService.refreshUserToken('valid-refresh-token');
+      const result = await userService.refreshUserToken(
+        'test',
+        'valid-refresh-token',
+      );
 
       expect(result).toBe('new-id-token');
       expect(mockAuthService.refreshUserToken).toHaveBeenCalledWith(
+        'test',
         'valid-refresh-token',
       );
       expect(logger.info).toHaveBeenCalledWith(
@@ -525,7 +534,7 @@ describe('UserService', () => {
       mockAuthService.refreshUserToken.mockRejectedValue(error);
 
       await expect(
-        userService.refreshUserToken('invalid-token'),
+        userService.refreshUserToken('test', 'invalid-token'),
       ).rejects.toThrow(error);
     });
   });

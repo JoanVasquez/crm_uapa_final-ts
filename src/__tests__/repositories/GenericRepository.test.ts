@@ -3,6 +3,8 @@ import { GenericRepository } from '../../repositories/GenericRepository';
 import { DatabaseError } from '../../errors/DatabaseError';
 import { NotFoundError } from '../../errors/NotFoundError';
 import logger from '../../utils/logger';
+import { DuplicateRecordError } from '../../errors/DuplicateRecordError';
+import { ForeignKeyViolationError } from '../../errors/ForeignKeyViolationError';
 
 // Ensure logger methods are jest functions.
 jest.mock('../../utils/logger', () => ({
@@ -108,6 +110,21 @@ describe('GenericRepository', () => {
       }
       expect(logger.error).toHaveBeenCalled();
     });
+
+    it('should throw DuplicateRecordError when creating entity with duplicate key', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const error: any = { code: '23505' };
+      mockRepository.save.mockRejectedValue(error);
+
+      await expect(testRepository.createEntity(testEntity)).rejects.toThrow(
+        DuplicateRecordError,
+      );
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error creating entity:'),
+        { error },
+      );
+    });
   });
 
   // -----------------------
@@ -196,7 +213,7 @@ describe('GenericRepository', () => {
       await expect(testRepository.updateEntity(1, updateData)).rejects.toThrow(
         NotFoundError,
       );
-      expect(logger.error).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Entity with ID 1 not found for update'),
       );
     });
@@ -209,7 +226,9 @@ describe('GenericRepository', () => {
       await expect(testRepository.updateEntity(1, updateData)).rejects.toThrow(
         NotFoundError,
       );
-      expect(logger.error).toHaveBeenCalledWith(
+
+      // ✅ Ahora deberías verificar si logger.warn fue llamado
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Entity with ID 1 not found after update'),
       );
     });
@@ -241,6 +260,35 @@ describe('GenericRepository', () => {
         }
       }
       expect(logger.error).toHaveBeenCalled();
+    });
+    it('should throw DuplicateRecordError when updating entity with duplicate key', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const error: any = { code: '23505' };
+      mockRepository.update.mockRejectedValue(error);
+
+      await expect(
+        testRepository.updateEntity(1, { name: 'Updated Name' }),
+      ).rejects.toThrow(DuplicateRecordError);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error updating entity:'),
+        { error },
+      );
+    });
+
+    it('should throw ForeignKeyViolationError when foreign key violation occurs in createEntity', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const error: any = { code: '23503' };
+      mockRepository.save.mockRejectedValue(error);
+
+      await expect(testRepository.createEntity(testEntity)).rejects.toThrow(
+        ForeignKeyViolationError,
+      );
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error creating entity:'),
+        { error },
+      );
     });
   });
 
@@ -298,6 +346,20 @@ describe('GenericRepository', () => {
         }
       }
       expect(logger.error).toHaveBeenCalled();
+    });
+    it('should throw ForeignKeyViolationError when foreign key violation occurs in deleteEntity', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const error: any = { code: '23503' };
+      mockRepository.delete.mockRejectedValue(error);
+
+      await expect(testRepository.deleteEntity(1)).rejects.toThrow(
+        ForeignKeyViolationError,
+      );
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error deleting entity:'),
+        { error },
+      );
     });
   });
 

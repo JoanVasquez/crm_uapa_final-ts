@@ -117,10 +117,21 @@ async function authenticate(
   }
 }
 
-async function refreshToken(refreshToken: string): Promise<string> {
+async function refreshToken(
+  username: string,
+  refreshToken: string,
+): Promise<string> {
   try {
     const clientId = await getCachedParameter(
       process.env.SSM_COGNITO_CLIENT_ID!,
+    );
+    const clientSecret = await getCachedParameter(
+      process.env.SSM_KMS_COGNITO_CLIENT_SECRET!,
+    );
+    const secretHash = await computeSecretHash(
+      username,
+      clientId,
+      clientSecret,
     );
 
     const command = new InitiateAuthCommand({
@@ -128,6 +139,8 @@ async function refreshToken(refreshToken: string): Promise<string> {
       ClientId: clientId,
       AuthParameters: {
         REFRESH_TOKEN: refreshToken,
+        SECRET_HASH: secretHash,
+        USERNAME: username,
       },
     });
 
@@ -139,7 +152,8 @@ async function refreshToken(refreshToken: string): Promise<string> {
 
     logger.info('🔄 [AuthenticationService] Token refreshed successfully');
     return response.AuthenticationResult.IdToken;
-  } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
     logger.error('❌ [AuthenticationService] Refresh failed', { error });
     throw mapCognitoErrorToCustomError(error, 'Refresh token failed', 401);
   }

@@ -47,6 +47,13 @@ export default class AuthController {
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
+      res.cookie('username', username, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
       res.status(httpStatus.OK.code).send(
         new ResponseTemplate(
           httpStatus.OK.code,
@@ -78,7 +85,7 @@ export default class AuthController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const { refreshToken } = req.body;
+      const refreshToken = req.cookies?.refreshToken;
 
       if (!refreshToken) {
         throw new RequestValidationError('Refresh token is required.');
@@ -86,7 +93,12 @@ export default class AuthController {
 
       logger.info('🔄 [AuthController] Refresh token request received');
 
-      const newToken = await this.userService?.refreshUserToken(refreshToken);
+      const username = req.cookies?.username;
+
+      const newToken = await this.userService?.refreshUserToken(
+        username,
+        refreshToken,
+      );
 
       // Set new token in HTTP-only cookie
       res.cookie('token', newToken, {
@@ -280,6 +292,12 @@ export default class AuthController {
   ): Promise<void> => {
     try {
       res.clearCookie('token', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+      });
+
+      res.clearCookie('refreshToken', {
         httpOnly: true,
         secure: true,
         sameSite: 'strict',

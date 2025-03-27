@@ -101,6 +101,38 @@ describe('GenericService', () => {
       expect(result).toBeNull();
       expect(mockCache.set).not.toHaveBeenCalled();
     });
+
+    it('should refresh list caches after successful save', async () => {
+      const entity = { ...testEntity, id: 1 };
+      const allEntities = [entity];
+      const paginated = { data: allEntities, count: 1 };
+
+      mockRepository.createEntity.mockResolvedValue(entity);
+      mockRepository.getAllEntities.mockResolvedValue(allEntities);
+      mockRepository.getEntitiesWithPagination.mockResolvedValue(paginated);
+
+      const result = await testService.save(testEntity);
+
+      expect(result).toEqual(entity);
+
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'testentity:1',
+        JSON.stringify(entity),
+        3600,
+      );
+
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'testentity:all',
+        JSON.stringify(allEntities),
+        3600,
+      );
+
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'testentity:pagination',
+        JSON.stringify(paginated),
+        3600,
+      );
+    });
   });
 
   // -----------------------
@@ -176,6 +208,38 @@ describe('GenericService', () => {
 
       expect(result).toBeNull();
       expect(mockCache.set).not.toHaveBeenCalled();
+    });
+
+    it('should refresh list caches after successful update', async () => {
+      const updatedEntity = { id: 1, name: 'Updated Name' };
+      const allEntities = [updatedEntity];
+      const paginated = { data: allEntities, count: 1 };
+
+      mockRepository.updateEntity.mockResolvedValue(updatedEntity);
+      mockRepository.getAllEntities.mockResolvedValue(allEntities);
+      mockRepository.getEntitiesWithPagination.mockResolvedValue(paginated);
+
+      const result = await testService.update(1, { name: 'Updated Name' });
+
+      expect(result).toEqual(updatedEntity);
+
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'testentity:1',
+        JSON.stringify(updatedEntity),
+        3600,
+      );
+
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'testentity:all',
+        JSON.stringify(allEntities),
+        3600,
+      );
+
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'testentity:pagination',
+        JSON.stringify(paginated),
+        3600,
+      );
     });
   });
 
@@ -265,7 +329,7 @@ describe('GenericService', () => {
         2,
       );
       expect(mockCache.set).toHaveBeenCalledWith(
-        'testentity:pagination:skip=0:take=2',
+        'testentity:pagination',
         JSON.stringify({ data: entities, count: 2 }),
         3600,
       );
@@ -277,7 +341,7 @@ describe('GenericService', () => {
     // --- New test to cover cache hit branch (lines 188-191) ---
     it('should return cached paginated data if available', async () => {
       const paginatedResult = { data: [testEntity], count: 1 };
-      const cacheKey = 'testentity:pagination:skip=0:take=2';
+      const cacheKey = 'testentity:pagination';
       mockCache.get.mockResolvedValue(JSON.stringify(paginatedResult));
 
       const result = await testService.findPaginated(0, 2);

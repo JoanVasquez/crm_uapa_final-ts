@@ -3,6 +3,8 @@ import { IRepository } from './IRepository';
 import logger from '../utils/logger';
 import { DatabaseError } from '../errors/DatabaseError';
 import { NotFoundError } from '../errors/NotFoundError';
+import { DuplicateRecordError } from '../errors/DuplicateRecordError';
+import { ForeignKeyViolationError } from '../errors/ForeignKeyViolationError';
 
 /**
  * 📦 GenericRepository
@@ -38,15 +40,25 @@ export abstract class GenericRepository<T extends ObjectLiteral>
     try {
       const savedEntity = await this.repo.save(entity);
       logger.info(
-        `✅ [GenericRepository] Created new entity: ${JSON.stringify(
-          savedEntity,
-        )}`,
+        `✅ [GenericRepository] Created new entity: ${JSON.stringify(savedEntity)}`,
       );
       return savedEntity;
-    } catch (error: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       logger.error(`❌ [GenericRepository] Error creating entity:`, { error });
+
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
+
+      // 🎯 Manejo específico de errores de duplicación o claves foráneas
+      if (error.code === '23505') {
+        // 23505: Duplicated record (Unique constraint violation)
+        throw new DuplicateRecordError('Duplicated record');
+      } else if (error.code === '23503') {
+        // 23503: Foreign key violation
+        throw new ForeignKeyViolationError('Foreign key violation');
+      }
+
       throw new DatabaseError('Error creating entity', errorMessage);
     }
   }
@@ -92,7 +104,7 @@ export abstract class GenericRepository<T extends ObjectLiteral>
       const updateResult = await this.repo.update(id, updatedData);
 
       if (updateResult.affected === 0) {
-        logger.error(
+        logger.warn(
           `❌ [GenericRepository] Entity with ID ${id} not found for update`,
         );
         throw new NotFoundError('Entity');
@@ -101,21 +113,28 @@ export abstract class GenericRepository<T extends ObjectLiteral>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updatedEntity = await this.repo.findOneBy({ id } as any);
       if (!updatedEntity) {
-        logger.error(
-          `❌ [GenericRepository] Entity with ID ${id} not found after update`,
+        logger.warn(
+          `⚠️ [GenericRepository] Entity with ID ${id} not found after update`,
         );
         throw new NotFoundError('Entity');
       }
 
       logger.info(`✅ [GenericRepository] Updated entity with ID: ${id}`);
       return updatedEntity;
-    } catch (error: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       if (error instanceof NotFoundError) {
         throw error;
       }
+
       logger.error(`❌ [GenericRepository] Error updating entity:`, { error });
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
+
+      if (error.code === '23505') {
+        throw new DuplicateRecordError('Duplicated record');
+      }
+
       throw new DatabaseError('Error updating entity', errorMessage);
     }
   }
@@ -139,11 +158,20 @@ export abstract class GenericRepository<T extends ObjectLiteral>
 
       logger.info(`✅ [GenericRepository] Deleted entity with ID: ${id}`);
       return true;
-    } catch (error: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       if (error instanceof NotFoundError) {
         throw error;
       }
+
       logger.error(`❌ [GenericRepository] Error deleting entity:`, { error });
+
+      if (error.code === '23503') {
+        throw new ForeignKeyViolationError(
+          'Cannot delete entity due to foreign key constraints',
+        );
+      }
+
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       throw new DatabaseError('Error deleting entity', errorMessage);

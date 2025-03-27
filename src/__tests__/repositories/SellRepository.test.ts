@@ -157,7 +157,7 @@ describe('SellRepository', () => {
         sellRepository.updateEntity(99, { quantity: 10 }),
       ).rejects.toThrow('Entity not found');
 
-      expect(logger.error).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Entity with ID 99 not found for update'),
       );
     });

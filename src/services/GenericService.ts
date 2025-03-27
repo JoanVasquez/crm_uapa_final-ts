@@ -40,7 +40,7 @@ export abstract class GenericService<T> implements ICRUD<T> {
 
     const savedEntity = await this.genericRepository.createEntity(entity);
     if (savedEntity) {
-      // eslint-disable-next-line
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const entityId = (savedEntity as any).id;
       if (entityId) {
         await this.cache.set(
@@ -52,6 +52,9 @@ export abstract class GenericService<T> implements ICRUD<T> {
           `✅ [GenericService] Cached entity: ${this.entityName}:${entityId}`,
         );
       }
+
+      // 🔄 Only refresh if save succeeded
+      await this.refreshAllAndPaginationCache();
     }
 
     return savedEntity;
@@ -92,11 +95,7 @@ export abstract class GenericService<T> implements ICRUD<T> {
    * @returns The updated entity or `null` if update fails.
    */
   async update(id: number, updatedData: Partial<T>): Promise<T | null> {
-    logger.info(
-      `✏️ [GenericService] Updating entity ID: ${id} with data: ${JSON.stringify(
-        updatedData,
-      )}`,
-    );
+    logger.info(`✏️ [GenericService] Updating entity ID: ${id}`);
 
     const updatedEntity = await this.genericRepository.updateEntity(
       id,
@@ -111,6 +110,9 @@ export abstract class GenericService<T> implements ICRUD<T> {
       logger.info(
         `✅ [GenericService] Updated and cached entity: ${this.entityName}:${id}`,
       );
+
+      // 🔄 Only refresh if update succeeded
+      await this.refreshAllAndPaginationCache();
     }
 
     return updatedEntity;
@@ -130,6 +132,8 @@ export abstract class GenericService<T> implements ICRUD<T> {
       logger.info(
         `✅ [GenericService] Removed entity from cache: ${this.entityName}:${id}`,
       );
+
+      await this.refreshAllAndPaginationCache();
     } else {
       logger.warn(`⚠️ [GenericService] Failed to delete entity ID: ${id}`);
     }
@@ -181,7 +185,7 @@ export abstract class GenericService<T> implements ICRUD<T> {
       `📊 [GenericService] Fetching paginated entities: skip=${skip}, take=${take}`,
     );
 
-    const cacheKey = `${this.entityName}:pagination:skip=${skip}:take=${take}`;
+    const cacheKey = `${this.entityName}:pagination`;
     const cachedData = await this.cache.get(cacheKey);
 
     if (cachedData) {
@@ -201,5 +205,33 @@ export abstract class GenericService<T> implements ICRUD<T> {
     }
 
     return result;
+  }
+
+  protected async refreshAllAndPaginationCache(): Promise<void> {
+    // Refresh `all`
+    const allEntities = await this.genericRepository.getAllEntities();
+    await this.cache.set(
+      `${this.entityName}:all`,
+      JSON.stringify(allEntities),
+      3600,
+    );
+    logger.info(`🔄 [GenericService] Refreshed cache: ${this.entityName}:all`);
+
+    // Refresh `pagination` — default skip=0, take=10 (or personalizable)
+    const defaultSkip = 1;
+    const defaultTake = 10;
+    const paginated = await this.genericRepository.getEntitiesWithPagination(
+      defaultSkip,
+      defaultTake,
+    );
+
+    await this.cache.set(
+      `${this.entityName}:pagination`,
+      JSON.stringify(paginated),
+      3600,
+    );
+    logger.info(
+      `🔄 [GenericService] Refreshed cache: ${this.entityName}:pagination`,
+    );
   }
 }

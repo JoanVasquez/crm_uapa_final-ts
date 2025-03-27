@@ -67,11 +67,14 @@ export class AuthenticationService {
    * @throws {Error} If refreshing fails.
    */
 
-  async refreshUserToken(refreshToken: string): Promise<string> {
+  async refreshUserToken(
+    username: string,
+    refreshToken: string,
+  ): Promise<string> {
     logger.info(
       `🔄 [AuthenticationService] Refreshing token for user with refresh token: ${refreshToken}`,
     );
-    const token = await cognitoRefreshToken(refreshToken);
+    const token = await cognitoRefreshToken(username, refreshToken);
     logger.info(
       `✅ [AuthenticationService] Token refreshed successfully: ${token}`,
     );

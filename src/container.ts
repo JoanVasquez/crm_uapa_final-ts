@@ -72,6 +72,10 @@ export async function registerDependencies(): Promise<void> {
       useClass: CustomerService,
     });
 
+    container.register('UserServiceImpl', {
+      useClass: UserService,
+    });
+
     container.register('SellServiceImpl', {
       useClass: SellService,
     });

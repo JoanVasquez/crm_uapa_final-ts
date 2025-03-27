@@ -251,10 +251,16 @@ describe('AuthenticationService', () => {
     it('should refresh the token successfully', async () => {
       (cognitoRefreshToken as jest.Mock).mockResolvedValue('new-id-token');
 
-      const result = await authService.refreshUserToken(validRefreshToken);
+      const result = await authService.refreshUserToken(
+        'test',
+        validRefreshToken,
+      );
 
       expect(result).toBe('new-id-token');
-      expect(cognitoRefreshToken).toHaveBeenCalledWith(validRefreshToken);
+      expect(cognitoRefreshToken).toHaveBeenCalledWith(
+        'test',
+        validRefreshToken,
+      );
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Refreshing token for user with refresh token'),
       );
@@ -268,7 +274,7 @@ describe('AuthenticationService', () => {
       (cognitoRefreshToken as jest.Mock).mockRejectedValue(error);
 
       await expect(
-        authService.refreshUserToken(validRefreshToken),
+        authService.refreshUserToken('test', validRefreshToken),
       ).rejects.toThrow('Refresh failed');
     });
   });
