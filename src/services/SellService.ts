@@ -4,15 +4,24 @@ import { Customer } from '../models/Customer';
 import { SellRepository } from '../repositories/SellRepository';
 import { BillRepository } from '../repositories/BillRepository';
 import { CustomerRepository } from '../repositories/CustomerRepository';
-import { ProductService } from '../services/ProductService';
 import { GenericService } from './GenericService';
 import { Cache } from '../utils/cacheUtil';
 import logger from '../utils/logger';
 import { inject, injectable } from 'tsyringe';
 import { BaseAppException } from '../errors/BaseAppException';
-import { uploadFile } from '../utils/s3Util'; // S3 utility
-import { sendEmail } from '../utils/sesUtil'; // SES utility
-import { customer_receipt } from '../email_templates/templates'; // hypothetical utility to format bill
+import { uploadFile } from '../utils/s3Util';
+import { sendEmail } from '../utils/sesUtil';
+import { customer_receipt } from '../email_templates/templates';
+import { ProductRepository } from '../repositories/ProductRepository';
+
+export interface ProcessSalesDTO {
+  customerId: number;
+  sales: Array<{
+    productId: number;
+    quantity: number;
+    sale_price: number;
+  }>;
+}
 
 @injectable()
 export class SellService extends GenericService<Sale> {
@@ -22,98 +31,129 @@ export class SellService extends GenericService<Sale> {
     @inject('BillRepository') private readonly billRepository: BillRepository,
     @inject('CustomerRepository')
     private readonly customerRepository: CustomerRepository,
-    @inject('ProductService') private readonly productService: ProductService,
+    @inject('ProductRepository')
+    private readonly productRepository: ProductRepository,
   ) {
     super(cache, sellRepository, Sale);
     logger.info('✅ [SellService] Initialized SellService');
     this.sellRepository = sellRepository;
     this.billRepository = billRepository;
     this.customerRepository = customerRepository;
-    this.productService = productService;
+    this.productRepository = productRepository;
   }
 
-  async processSale(
-    customerData: Omit<Customer, 'id' | 'bills'>,
-    sales: { productId: number; quantity: number; salePrice: number }[],
-  ): Promise<Bill> {
+  async processSales(salesDTO: ProcessSalesDTO): Promise<boolean> {
+    logger.info('🚀 Starting processSales...');
+
+    // 1️⃣ Retrieve the customer
+    const customer: Customer | null =
+      await this.customerRepository.findEntityById(salesDTO.customerId);
+    if (!customer) {
+      logger.error('❌ Customer not found with id: %s', salesDTO.customerId);
+      throw new BaseAppException('Customer not found');
+    }
     logger.info(
-      `🛒 [SellService] Processing sale for new customer: ${customerData.email}`,
+      '👤 Found customer: %s %s',
+      customer.first_name,
+      customer.last_name,
     );
 
-    const newCustomer = new Customer();
-    Object.assign(newCustomer, customerData);
-    const savedCustomer =
-      await this.customerRepository.createEntity(newCustomer);
+    // 2️⃣ Create a new Bill for the customer
+    const bill = new Bill();
+    bill.customer = customer;
+    bill.total_amount = 0;
+    bill.sales = [];
+    logger.info('🧾 New bill created for customer');
 
-    const newBill = new Bill();
-    newBill.customer = savedCustomer!;
-    newBill.total_amount = 0;
-    newBill.sales = [];
+    // 3️⃣ Process each sale item
+    for (const saleDTO of salesDTO.sales) {
+      logger.info(
+        '🔍 Processing sale item for product id: %s',
+        saleDTO.productId,
+      );
 
-    const savedBill = await this.billRepository.createEntity(newBill);
-
-    let totalAmount = 0;
-
-    for (const sale of sales) {
-      const product = await this.productService.findById(sale.productId);
-      if (!product || product.available_quantity < sale.quantity) {
+      const product = await this.productRepository.findEntityById(
+        saleDTO.productId,
+      );
+      if (!product) {
+        logger.error('❌ Product not found with id: %s', saleDTO.productId);
         throw new BaseAppException(
-          `❌ Insufficient stock or invalid product ID: ${sale.productId}`,
+          `Product with id ${saleDTO.productId} not found`,
+        );
+      }
+      logger.info('📦 Found product: %s', product.name);
+
+      if (product.available_quantity < saleDTO.quantity) {
+        logger.error('❌ Insufficient stock for product: %s', product.name);
+        throw new BaseAppException(
+          `Insufficient stock for product ${product.name}`,
         );
       }
 
-      const newSale = new Sale();
-      newSale.bill = savedBill!;
-      newSale.product = product;
-      newSale.quantity = sale.quantity;
-      newSale.sale_price = sale.salePrice;
+      // Update product stock
+      product.available_quantity -= saleDTO.quantity;
+      await this.productRepository.updateEntity(saleDTO.productId, product);
+      logger.info(
+        '✅ Updated stock for product %s, new quantity: %s',
+        product.name,
+        product.available_quantity,
+      );
 
-      await this.sellRepository.createEntity(newSale);
-      newBill.sales.push(newSale);
-
-      totalAmount += sale.quantity * sale.salePrice;
-
-      await this.productService.update(product.id, {
-        available_quantity: product.available_quantity - sale.quantity,
-      });
+      // Create and add Sale
+      const sale = new Sale();
+      sale.bill = bill;
+      sale.product = product;
+      sale.quantity = saleDTO.quantity;
+      sale.sale_price = saleDTO.sale_price;
+      bill.sales.push(sale);
+      bill.total_amount += sale.sale_price * sale.quantity;
+      logger.info(
+        '🛍️ Added sale item: %s units of %s at $%s each',
+        sale.quantity,
+        product.name,
+        sale.sale_price,
+      );
     }
 
-    savedBill!.total_amount = totalAmount;
-    const finalBill = await this.billRepository.updateEntity(savedBill!.id, {
-      total_amount: totalAmount,
-    });
+    // 4️⃣ Save the Bill (cascading the sales)
+    const savedBill = await this.billRepository.createEntity(bill);
 
-    // 🧾 Upload the bill HTML to S3
-    const billHtml = customer_receipt(finalBill!);
-    const fileName = `bill-${finalBill!.id}.html`;
-    const contentType = 'text/html';
-    const bucket = process.env.S3_BUCKET_BILL ?? 'default-bill-bucket';
-    const fileUrl = await uploadFile(
-      fileName,
-      Buffer.from(billHtml),
-      contentType,
-      bucket,
-    );
-
-    logger.info(`📤 [SellService] Bill uploaded to S3: ${fileUrl}`);
-
-    // 📩 Email the bill
-    await sendEmail(
-      [savedCustomer!.email],
-      `Your Purchase Receipt - Bill #${finalBill!.id}`,
-      billHtml,
-    );
+    if (!savedBill) {
+      logger.error('❌ Error saving bill');
+      throw new BaseAppException('Error saving bill');
+    }
 
     logger.info(
-      `📧 [SellService] Bill sent to customer: ${savedCustomer!.email}`,
+      '💾 Bill saved with id: %s, Total amount: $%s',
+      savedBill.id,
+      savedBill.total_amount,
     );
 
+    // 5️⃣ Generate a receipt and upload it to S3
+    const billHtml = customer_receipt(savedBill);
+    const fileName = `${customer.first_name}-${customer.last_name}-bill-${savedBill.date.toISOString()}.html`;
+    const contentType = 'text/html';
+    const bucket = process.env.S3_BUCKET_BILL ?? 'default-bill-bucket';
+    await uploadFile(fileName, Buffer.from(billHtml), contentType, bucket);
+    logger.info('☁️ Receipt uploaded to S3: %s', fileName);
+
+    // 6️⃣ Send the receipt via email to the customer
+    await sendEmail(
+      [customer.email],
+      `Your Purchase Receipt - Bill #${savedBill.id}`,
+      billHtml,
+    );
+    logger.info('📧 Receipt email sent to: %s', customer.email);
+
+    // 7️⃣ Cache the saved bill
     await this.cache.set(
-      `bill:${finalBill!.id}`,
-      JSON.stringify(finalBill),
+      `bill:${savedBill.id}`,
+      JSON.stringify(savedBill),
       3600,
     );
+    logger.info('🔒 Bill cached with key: bill:%s', savedBill.id);
 
-    return finalBill!;
+    logger.info('🎉 processSales completed successfully.');
+    return true;
   }
 }

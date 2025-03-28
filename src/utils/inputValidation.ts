@@ -143,61 +143,31 @@ export const productValidation = [
  * Ensures valid input fields for processing a sale.
  */
 export const sellValidation = [
-  body('customer.email')
+  body('customerId')
     .notEmpty()
     .withMessage(validationMessage.REQUIRED)
-    .isEmail()
-    .withMessage(validationMessage.INVALID_EMAIL),
-
-  body('customer.first_name')
-    .notEmpty()
-    .withMessage(validationMessage.REQUIRED)
-    .isString()
-    .withMessage('📝 First name must be a string')
-    .isLength({ min: 2, max: 50 })
-    .withMessage(validationMessage.STRING_LENGTH(2, 50)),
-
-  body('customer.last_name')
-    .notEmpty()
-    .withMessage(validationMessage.REQUIRED)
-    .isString()
-    .withMessage('📝 Last name must be a string')
-    .isLength({ min: 2, max: 50 })
-    .withMessage(validationMessage.STRING_LENGTH(2, 50)),
-
-  body('customer.address')
-    .optional()
-    .isString()
-    .withMessage('📍 Address must be a string')
-    .isLength({ min: 5, max: 255 })
-    .withMessage(validationMessage.STRING_LENGTH(5, 255)),
-
-  body('customer.phonenumber')
-    .optional()
-    .isString()
-    .withMessage('📞 Phone number must be a string')
-    .isLength({ min: 8, max: 20 })
-    .withMessage(validationMessage.STRING_LENGTH(8, 20)),
+    .isNumeric()
+    .withMessage('Customer ID must be a number'),
 
   body('sales')
     .isArray({ min: 1 })
-    .withMessage('🛍️ Sales must be an array with at least one item'),
+    .withMessage('Sales must be an array with at least one sale item'),
 
   body('sales.*.productId')
     .notEmpty()
     .withMessage(validationMessage.REQUIRED)
     .isNumeric()
-    .withMessage(validationMessage.INVALID_NUMBER),
+    .withMessage('Product ID must be a number'),
 
   body('sales.*.quantity')
     .notEmpty()
     .withMessage(validationMessage.REQUIRED)
-    .isInt({ min: 1 })
-    .withMessage(validationMessage.POSITIVE_NUMBER),
+    .isInt({ gt: 0 })
+    .withMessage('Quantity must be a positive integer'),
 
-  body('sales.*.salePrice')
+  body('sales.*.sale_price')
     .notEmpty()
     .withMessage(validationMessage.REQUIRED)
-    .isFloat({ min: 0.01 })
-    .withMessage(validationMessage.POSITIVE_NUMBER),
+    .isFloat({ gt: 0 })
+    .withMessage('Sale price must be a positive number'),
 ];

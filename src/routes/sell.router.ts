@@ -78,7 +78,7 @@ router.post(
   verifyToken,
   sellValidation,
   validateRequest,
-  sellController.processSale,
+  sellController.processSales,
 );
 
 /**

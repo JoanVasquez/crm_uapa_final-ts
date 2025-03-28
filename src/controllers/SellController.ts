@@ -33,17 +33,17 @@ export default class SellController extends BaseController {
    * - Calls `SellService.processSale` to create the customer, bill, and sales.
    * - Returns the newly created bill with associated sales.
    */
-  processSale = async (
+  processSales = async (
     req: Request,
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const { customer, sales } = req.body;
+      const { sales: saleDTO } = req.body;
 
-      logger.info(`🛒 [SellController] Processing sale for: ${customer.email}`);
+      logger.info(`🛒 [SellController] Processing sale`);
 
-      const bill = await this.sellServiceImpl?.processSale(customer, sales);
+      const isSaleProcessed = await this.sellServiceImpl?.processSales(saleDTO);
 
       res
         .status(httpStatus.CREATED.code)
@@ -52,13 +52,9 @@ export default class SellController extends BaseController {
             httpStatus.CREATED.code,
             httpStatus.CREATED.status,
             'Sale processed successfully',
-            bill,
+            isSaleProcessed,
           ),
         );
-
-      logger.info(
-        `✅ [SellController] Sale processed under bill ID: ${bill?.id}`,
-      );
     } catch (error) {
       logger.error(`❌ [SellController] Sale processing failed`, { error });
       next(error);
