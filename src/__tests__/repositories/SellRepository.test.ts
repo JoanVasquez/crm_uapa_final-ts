@@ -32,6 +32,19 @@ describe('SellRepository', () => {
       date: new Date(),
       total_amount: 100,
       sales: [],
+      toJSON: () => ({
+        id: 1,
+        customer: {
+          id: 1,
+          email: 'test@example.com',
+          first_name: 'John',
+          last_name: 'Doe',
+          bills: [],
+        },
+        date: new Date(),
+        total_amount: 100,
+        sales: [],
+      }),
     },
     product: {
       id: 1,
@@ -232,6 +245,7 @@ describe('SellRepository', () => {
       expect(mockRepository.findAndCount).toHaveBeenCalledWith({
         skip: expectedSkip,
         take: perPage,
+        relations: ['bill', 'bill.customer', 'product'],
       });
     });
 
@@ -240,7 +254,7 @@ describe('SellRepository', () => {
 
       await expect(
         sellRepository.getEntitiesWithPagination(0, 10),
-      ).rejects.toThrow('Error fetching paginated entities');
+      ).rejects.toThrow('Error fetching paginated sales with relationships');
 
       expect(logger.error).toHaveBeenCalled();
     });

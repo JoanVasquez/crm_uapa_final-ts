@@ -25,7 +25,6 @@ export default class CustomerController extends BaseController {
     this.customerServiceImpl = customerServiceImpl;
 
     delete this.delete;
-    delete this.save;
   }
 
   findByEmail = async (

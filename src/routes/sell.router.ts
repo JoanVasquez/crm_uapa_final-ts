@@ -3,7 +3,7 @@ import SellController from '../controllers/SellController';
 import { container } from 'tsyringe';
 import { paginationValidation, sellValidation } from '../utils/inputValidation';
 import { validateRequest } from '../middlewares/error-handler';
-import { verifyToken } from '../middlewares/verifyCognitoToken';
+import { authorize, verifyToken } from '../middlewares/verifyCognitoToken';
 
 const router: Router = express.Router();
 const sellController: SellController = container.resolve(SellController);
@@ -76,6 +76,7 @@ const sellController: SellController = container.resolve(SellController);
 router.post(
   '/sell',
   verifyToken,
+  authorize('seller'),
   sellValidation,
   validateRequest,
   sellController.processSales,
@@ -95,7 +96,7 @@ router.post(
  *       401:
  *         description: Unauthorized
  */
-router.get('/sell', verifyToken, sellController.findAll!);
+router.get('/sell', verifyToken, authorize('seller'), sellController.findAll!);
 
 /**
  * @swagger
@@ -123,6 +124,7 @@ router.get('/sell', verifyToken, sellController.findAll!);
 router.get(
   '/sell/paginated',
   verifyToken,
+  authorize('seller'),
   paginationValidation,
   validateRequest,
   sellController.findAllPaginated!,
@@ -150,6 +152,11 @@ router.get(
  *       401:
  *         description: Unauthorized
  */
-router.get('/sell/:id', verifyToken, sellController.findById!);
+router.get(
+  '/sell/:id',
+  verifyToken,
+  authorize('seller'),
+  sellController.findById!,
+);
 
 export default router;

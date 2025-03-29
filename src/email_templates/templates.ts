@@ -12,12 +12,15 @@ export const email_confirm = (confirmationURL: string) => `
 export const customer_receipt = (bill: Bill): string => {
   const customerName = `${bill.customer.first_name} ${bill.customer.last_name}`;
   const billId = bill.id;
-  const totalAmount = bill.total_amount;
 
+  // ✅ Convert total_amount to number before calling toFixed()
+  const totalAmount = Number(bill.total_amount);
+
+  // ✅ Convert sale_price to number for each sale
   const sales = bill.sales.map((sell) => ({
     productName: sell.product.name,
     quantity: sell.quantity,
-    salePrice: sell.sale_price,
+    salePrice: Number(sell.sale_price), // Fix applied here
   }));
 
   return `

@@ -39,11 +39,11 @@ export default class SellController extends BaseController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const { sales: saleDTO } = req.body;
+      const sale = req.body;
 
       logger.info(`🛒 [SellController] Processing sale`);
 
-      const isSaleProcessed = await this.sellServiceImpl?.processSales(saleDTO);
+      const isSaleProcessed = await this.sellServiceImpl?.processSales(sale);
 
       res
         .status(httpStatus.CREATED.code)

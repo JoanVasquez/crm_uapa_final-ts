@@ -185,7 +185,7 @@ export abstract class GenericService<T> implements ICRUD<T> {
       `📊 [GenericService] Fetching paginated entities: skip=${skip}, take=${take}`,
     );
 
-    const cacheKey = `${this.entityName}:pagination`;
+    const cacheKey = `${this.entityName}${skip}-${take}:pagination`;
     const cachedData = await this.cache.get(cacheKey);
 
     if (cachedData) {
@@ -226,12 +226,12 @@ export abstract class GenericService<T> implements ICRUD<T> {
     );
 
     await this.cache.set(
-      `${this.entityName}:pagination`,
+      `${this.entityName}${defaultSkip}-${defaultTake}:pagination`,
       JSON.stringify(paginated),
       3600,
     );
     logger.info(
-      `🔄 [GenericService] Refreshed cache: ${this.entityName}:pagination`,
+      `🔄 [GenericService] Refreshed cache: ${this.entityName}${defaultSkip}-${defaultTake}:pagination`,
     );
   }
 }

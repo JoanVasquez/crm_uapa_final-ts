@@ -20,11 +20,30 @@ describe('BillRepository', () => {
 
   const testBill: Bill = {
     id: 1,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    customer: { id: 1 } as any,
+
+    customer: {
+      id: 1,
+      email: 'test@example.com',
+      first_name: 'John',
+      last_name: 'Doe',
+      bills: [],
+    },
     date: new Date(),
     total_amount: 50.0,
     sales: [],
+    toJSON: () => ({
+      id: 1,
+      customer: {
+        id: 1,
+        email: 'test@example.com',
+        first_name: 'John',
+        last_name: 'Doe',
+        bills: [],
+      },
+      date: new Date(),
+      total_amount: 50.0,
+      sales: [],
+    }),
   };
 
   beforeEach(() => {

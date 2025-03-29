@@ -80,12 +80,7 @@ router.post(
  *       401:
  *         description: Unauthorized
  */
-router.get(
-  '/product',
-  verifyToken,
-  authorize('admin'),
-  productController.findAll!,
-);
+router.get('/product', verifyToken, productController.findAll!);
 
 /**
  * @swagger
@@ -113,7 +108,6 @@ router.get(
 router.get(
   '/product/paginated',
   verifyToken,
-  authorize('admin'),
   paginationValidation,
   validateRequest,
   productController.findAllPaginated!,
@@ -139,12 +133,7 @@ router.get(
  *       404:
  *         description: Product not found
  */
-router.get(
-  '/product/:id',
-  verifyToken,
-  authorize('admin'),
-  productController.findById!,
-);
+router.get('/product/:id', verifyToken, productController.findById!);
 
 /**
  * @swagger

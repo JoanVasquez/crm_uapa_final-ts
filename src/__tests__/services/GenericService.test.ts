@@ -127,8 +127,9 @@ describe('GenericService', () => {
         3600,
       );
 
+      // ✅ Updated to match the correct key with skip=1 and take=10
       expect(mockCache.set).toHaveBeenCalledWith(
-        'testentity:pagination',
+        'testentity1-10:pagination', // ✅ Corrected key
         JSON.stringify(paginated),
         3600,
       );
@@ -235,8 +236,9 @@ describe('GenericService', () => {
         3600,
       );
 
+      // ✅ Updated to match the correct key with skip=1 and take=10
       expect(mockCache.set).toHaveBeenCalledWith(
-        'testentity:pagination',
+        'testentity1-10:pagination', // ✅ Corrected key
         JSON.stringify(paginated),
         3600,
       );
@@ -324,30 +326,32 @@ describe('GenericService', () => {
       const result = await testService.findPaginated(0, 2);
 
       expect(result).toEqual({ data: entities, count: 2 });
-      expect(mockRepository.getEntitiesWithPagination).toHaveBeenCalledWith(
-        0,
-        2,
-      );
+
+      // ✅ Updated to expect the correct cache key
       expect(mockCache.set).toHaveBeenCalledWith(
-        'testentity:pagination',
+        'testentity0-2:pagination', // ✅ Correct key format
         JSON.stringify({ data: entities, count: 2 }),
         3600,
       );
+
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Fetching paginated entities: skip=0, take=2'),
       );
     });
 
-    // --- New test to cover cache hit branch (lines 188-191) ---
     it('should return cached paginated data if available', async () => {
       const paginatedResult = { data: [testEntity], count: 1 };
-      const cacheKey = 'testentity:pagination';
+
+      // ✅ Correct key format that includes skip and take
+      const cacheKey = 'testentity0-2:pagination';
       mockCache.get.mockResolvedValue(JSON.stringify(paginatedResult));
 
       const result = await testService.findPaginated(0, 2);
 
       expect(result).toEqual(paginatedResult);
       expect(mockRepository.getEntitiesWithPagination).not.toHaveBeenCalled();
+
+      // ✅ Expect the correct key
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining(
           `Retrieved paginated data from cache: ${cacheKey}`,

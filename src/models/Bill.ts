@@ -49,4 +49,19 @@ export class Bill {
    */
   @OneToMany(() => Sale, (sale) => sale.bill, { cascade: true })
   sales!: Sale[];
+
+  toJSON() {
+    return {
+      id: this.id,
+      customer: this.customer,
+      date: this.date,
+      total_amount: this.total_amount,
+      sales: this.sales?.map((sale) => ({
+        id: sale.id,
+        product: sale.product.name,
+        quantity: sale.quantity,
+        sale_price: sale.sale_price,
+      })),
+    };
+  }
 }

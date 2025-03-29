@@ -1,4 +1,5 @@
 import { DataSource, ObjectLiteral, Repository } from 'typeorm';
+import util from 'util';
 import { IRepository } from './IRepository';
 import logger from '../utils/logger';
 import { DatabaseError } from '../errors/DatabaseError';
@@ -40,26 +41,33 @@ export abstract class GenericRepository<T extends ObjectLiteral>
     try {
       const savedEntity = await this.repo.save(entity);
       logger.info(
-        `✅ [GenericRepository] Created new entity: ${JSON.stringify(savedEntity)}`,
+        `✅ [GenericRepository] Created new entity: ${util.inspect(
+          savedEntity,
+          {
+            depth: null,
+            colors: false,
+          },
+        )}`,
       );
       return savedEntity;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      logger.error(`❌ [GenericRepository] Error creating entity:`, { error });
-
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error.message : JSON.stringify(error);
 
-      // 🎯 Manejo específico de errores de duplicación o claves foráneas
+      logger.error(
+        `❌ [GenericRepository] Error creating entity: ${errorMessage}`,
+        error instanceof Error ? { stack: error.stack } : { error },
+      );
+
+      // 🎯 Handle specific errors (Duplicate or Foreign Key Violation)
       if (error.code === '23505') {
-        // 23505: Duplicated record (Unique constraint violation)
         throw new DuplicateRecordError('Duplicated record');
       } else if (error.code === '23503') {
-        // 23503: Foreign key violation
         throw new ForeignKeyViolationError('Foreign key violation');
       }
 
-      throw new DatabaseError('Error creating entity', errorMessage);
+      throw new DatabaseError('Error creating entity', errorMessage); // ✅ Now passing correct error metadata
     }
   }
 

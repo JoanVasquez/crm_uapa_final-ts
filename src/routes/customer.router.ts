@@ -1,9 +1,12 @@
 import express, { Router } from 'express';
 import CustomerController from '../controllers/CustomerController';
 import { container } from 'tsyringe';
-import { paginationValidation } from '../utils/inputValidation';
+import {
+  customerValidation,
+  paginationValidation,
+} from '../utils/inputValidation';
 import { validateRequest } from '../middlewares/error-handler';
-import { authorize, verifyToken } from '../middlewares/verifyCognitoToken';
+import { verifyToken } from '../middlewares/verifyCognitoToken';
 
 const router: Router = express.Router();
 const customerController: CustomerController =
@@ -30,12 +33,7 @@ const customerController: CustomerController =
  *       401:
  *         description: Unauthorized
  */
-router.get(
-  '/customer',
-  verifyToken,
-  authorize('admin'),
-  customerController.findAll!,
-);
+router.get('/customer', verifyToken, customerController.findAll!);
 
 /**
  * @swagger
@@ -63,7 +61,6 @@ router.get(
 router.get(
   '/customer/paginated',
   verifyToken,
-  authorize('admin'),
   paginationValidation,
   validateRequest,
   customerController.findAllPaginated!,
@@ -89,12 +86,7 @@ router.get(
  *       404:
  *         description: Customer not found
  */
-router.get(
-  '/customer/:id',
-  verifyToken,
-  authorize('admin'),
-  customerController.findById!,
-);
+router.get('/customer/:id', verifyToken, customerController.findById!);
 
 /**
  * @swagger
@@ -116,11 +108,66 @@ router.get(
  *       404:
  *         description: Customer not found
  */
-router.get(
-  '/customer/email',
+router.get('/customer/email', verifyToken, customerController.findByEmail);
+
+/**
+ * @swagger
+ * /api/v1/customer/{id}:
+ *   put:
+ *     summary: Update customer by ID
+ *     tags: [Customers]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/definitions/Customer'
+ *     responses:
+ *       200:
+ *         description: Customer updated successfully
+ *       404:
+ *         description: Customer not found
+ */
+router.put(
+  '/customer/:id',
+  customerValidation,
   verifyToken,
-  authorize('admin'),
-  customerController.findByEmail,
+  customerController.update!,
+);
+
+/**
+ * @swagger
+ * /api/v1/customer:
+ *   post:
+ *     summary: Create a new customer
+ *     tags: [Customers]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/definitions/Customer'
+ *     responses:
+ *       201:
+ *         description: Customer created successfully
+ *       400:
+ *         description: Invalid input
+ */
+router.post(
+  '/customer',
+  customerValidation,
+  verifyToken,
+  customerController.save!,
 );
 
 export default router;

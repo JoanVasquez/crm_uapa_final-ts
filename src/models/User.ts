@@ -10,6 +10,8 @@ export enum UserRole {
   ADMIN = 'admin',
   // eslint-disable-next-line no-unused-vars
   SELLER = 'seller',
+  // eslint-disable-next-line no-unused-vars
+  SUPPLIER = 'supplier',
 }
 
 /**

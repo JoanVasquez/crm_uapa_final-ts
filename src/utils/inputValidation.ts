@@ -171,3 +171,50 @@ export const sellValidation = [
     .isFloat({ gt: 0 })
     .withMessage('Sale price must be a positive number'),
 ];
+
+/**
+ * 👤 Customer Validations
+ * Validates the request body for creating/updating a customer based on the Customer entity.
+ */
+export const customerValidation = [
+  // Email: required, must be a valid email address.
+  body('email')
+    .notEmpty()
+    .withMessage(validationMessage.REQUIRED)
+    .isEmail()
+    .withMessage(validationMessage.INVALID_EMAIL),
+
+  // First Name: required, must be a string between 2 and 255 characters.
+  body('first_name')
+    .notEmpty()
+    .withMessage(validationMessage.REQUIRED)
+    .isString()
+    .withMessage('First name must be a string')
+    .isLength({ min: 2, max: 255 })
+    .withMessage(validationMessage.STRING_LENGTH(2, 255)),
+
+  // Last Name: required, must be a string between 2 and 255 characters.
+  body('last_name')
+    .notEmpty()
+    .withMessage(validationMessage.REQUIRED)
+    .isString()
+    .withMessage('Last name must be a string')
+    .isLength({ min: 2, max: 255 })
+    .withMessage(validationMessage.STRING_LENGTH(2, 255)),
+
+  // Address: optional, but if provided must be a string and no more than 500 characters.
+  body('address')
+    .optional()
+    .isString()
+    .withMessage('Address must be a string')
+    .isLength({ max: 500 })
+    .withMessage('Address must be less than 500 characters'),
+
+  // Phone Number: optional, but if provided must be a string between 5 and 20 characters.
+  body('phonenumber')
+    .optional()
+    .isString()
+    .withMessage('Phone number must be a string')
+    .isLength({ min: 5, max: 20 })
+    .withMessage('Phone number must be between 5 and 20 characters'),
+];

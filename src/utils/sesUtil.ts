@@ -5,7 +5,7 @@ import {
 } from '@aws-sdk/client-ses';
 import logger from '../utils/logger';
 
-const region = process.env.AWS_REGION ?? 'us-east-1';
+const region = process.env.AWS_REGION;
 const sesClient = new SESClient({ region });
 
 /**
@@ -27,6 +27,7 @@ async function sendEmail(
     Message: {
       Body: {
         Html: {
+          Charset: 'UTF-8',
           Data: data,
         },
       },

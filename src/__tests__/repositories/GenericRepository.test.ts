@@ -77,7 +77,9 @@ describe('GenericRepository', () => {
       expect(result).toEqual(testEntity);
       expect(mockRepository.save).toHaveBeenCalledWith(testEntity);
       expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining(JSON.stringify(testEntity)),
+        expect.stringContaining(
+          `Created new entity: { id: 1, name: 'Test Entity' }`,
+        ),
       );
     });
 
@@ -88,14 +90,18 @@ describe('GenericRepository', () => {
       await expect(testRepository.createEntity(testEntity)).rejects.toThrow(
         DatabaseError,
       );
+
+      // ✅ Corrected logger.error expectation
       expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('Error creating entity:'),
-        { error },
+        expect.stringContaining('Error creating entity:'), // Matches the error message
+        {
+          stack: error.stack, // Match the error object correctly
+        },
       );
     });
 
     it('should throw DatabaseError with JSON stringified metadata when save fails with non-Error', async () => {
-      const plainError = { unexpected: true };
+      const plainError = { unexpected: true }; // Plain object error
       mockRepository.save.mockRejectedValue(plainError);
 
       try {
@@ -105,10 +111,15 @@ describe('GenericRepository', () => {
       } catch (err: unknown) {
         expect(err).toBeInstanceOf(DatabaseError);
         if (err instanceof DatabaseError) {
-          expect(err.metadata).toEqual('Unknown error');
+          // ✅ Updated to expect the stringified object
+          expect(err.metadata).toEqual(JSON.stringify(plainError));
         }
       }
-      expect(logger.error).toHaveBeenCalled();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error creating entity: {"unexpected":true}'),
+        { error: plainError }, // ✅ Correct expectation for logger.error
+      );
     });
 
     it('should throw DuplicateRecordError when creating entity with duplicate key', async () => {

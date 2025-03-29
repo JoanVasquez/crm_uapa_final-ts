@@ -10,9 +10,9 @@ import logger from '../utils/logger';
 import { inject, injectable } from 'tsyringe';
 import { BaseAppException } from '../errors/BaseAppException';
 import { uploadFile } from '../utils/s3Util';
-import { sendEmail } from '../utils/sesUtil';
 import { customer_receipt } from '../email_templates/templates';
 import { ProductRepository } from '../repositories/ProductRepository';
+import { getCachedParameter } from '../utils/ssmUtil';
 
 export interface ProcessSalesDTO {
   customerId: number;
@@ -133,17 +133,9 @@ export class SellService extends GenericService<Sale> {
     const billHtml = customer_receipt(savedBill);
     const fileName = `${customer.first_name}-${customer.last_name}-bill-${savedBill.date.toISOString()}.html`;
     const contentType = 'text/html';
-    const bucket = process.env.S3_BUCKET_BILL ?? 'default-bill-bucket';
+    const bucket = await getCachedParameter(process.env.S3_BUCKET_BILL!);
     await uploadFile(fileName, Buffer.from(billHtml), contentType, bucket);
     logger.info('☁️ Receipt uploaded to S3: %s', fileName);
-
-    // 6️⃣ Send the receipt via email to the customer
-    await sendEmail(
-      [customer.email],
-      `Your Purchase Receipt - Bill #${savedBill.id}`,
-      billHtml,
-    );
-    logger.info('📧 Receipt email sent to: %s', customer.email);
 
     // 7️⃣ Cache the saved bill
     await this.cache.set(
