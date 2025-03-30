@@ -2,6 +2,7 @@ import { DataSource, Repository } from 'typeorm';
 import { Sale } from '../../models/Sale';
 import { SellRepository } from '../../repositories/SellRepository';
 import logger from '../../utils/logger';
+import { DatabaseError } from '../../errors/DatabaseError';
 
 // Mock dependencies before importing the class that uses them
 jest.mock('../../utils/logger');
@@ -256,6 +257,37 @@ describe('SellRepository', () => {
         sellRepository.getEntitiesWithPagination(0, 10),
       ).rejects.toThrow('Error fetching paginated sales with relationships');
 
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('should throw DatabaseError when findAndCount fails with an Error', async () => {
+      const error = new Error('Find and count failed');
+      mockRepository.findAndCount.mockRejectedValue(error);
+
+      await expect(
+        sellRepository.getEntitiesWithPagination(0, 2),
+      ).rejects.toThrow(DatabaseError);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '❌ [SellRepository] Error fetching paginated sales with relationships:',
+        ),
+        { error },
+      );
+    });
+
+    it('should throw DatabaseError with JSON stringified metadata when findAndCount fails with non-Error', async () => {
+      const plainError = { unexpected: 'pagination' };
+      mockRepository.findAndCount.mockRejectedValue(plainError);
+
+      try {
+        await sellRepository.getEntitiesWithPagination(0, 2);
+        throw new Error('Test did not throw');
+      } catch (err: unknown) {
+        expect(err).toBeInstanceOf(DatabaseError);
+        if (err instanceof DatabaseError) {
+          expect(err.metadata).toEqual('Unknown error');
+        }
+      }
       expect(logger.error).toHaveBeenCalled();
     });
   });

@@ -146,6 +146,9 @@ export class SellService extends GenericService<Sale> {
     logger.info('🔒 Bill cached with key: bill:%s', savedBill.id);
 
     logger.info('🎉 processSales completed successfully.');
+
+    await this.refreshAllAndPaginationCache();
+
     return true;
   }
 }
