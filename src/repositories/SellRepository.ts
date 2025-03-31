@@ -21,6 +21,28 @@ export class SellRepository extends GenericRepository<Sale> {
     logger.info('✅ [SellRepository] Initialized SellRepository');
   }
 
+  async getAllEntities(): Promise<Sale[]> {
+    try {
+      // ✅ Fetch sales with all relationships
+      const entities = await this.repo.find({
+        relations: [
+          'bill', // Include Bill
+          'bill.customer', // Include Bill's Customer
+          'product', // Include Product
+        ],
+      });
+
+      return entities;
+    } catch (error) {
+      logger.error(`❌ [GenericRepository] Error fetching all entities:`, {
+        error,
+      });
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new DatabaseError('Error fetching all entities', errorMessage);
+    }
+  }
+
   /**
    * 📚 Get paginated sales with relationships (bill, product, and bill.customer)
    * - Returns paginated sales including related entities.

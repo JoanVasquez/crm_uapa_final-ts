@@ -96,7 +96,7 @@ router.post(
  *       401:
  *         description: Unauthorized
  */
-router.get('/sell', verifyToken, authorize('seller'), sellController.findAll!);
+router.get('/sell', verifyToken, sellController.findAll!);
 
 /**
  * @swagger
@@ -124,7 +124,6 @@ router.get('/sell', verifyToken, authorize('seller'), sellController.findAll!);
 router.get(
   '/sell/paginated',
   verifyToken,
-  authorize('seller'),
   paginationValidation,
   validateRequest,
   sellController.findAllPaginated!,
@@ -152,11 +151,6 @@ router.get(
  *       401:
  *         description: Unauthorized
  */
-router.get(
-  '/sell/:id',
-  verifyToken,
-  authorize('seller'),
-  sellController.findById!,
-);
+router.get('/sell/:id', verifyToken, sellController.findById!);
 
 export default router;

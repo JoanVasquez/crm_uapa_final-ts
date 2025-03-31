@@ -213,19 +213,48 @@ describe('SellRepository', () => {
 
       expect(result).toEqual([testSale]);
       expect(mockRepository.find).toHaveBeenCalled();
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining('Retrieved all entities'),
-      );
     });
 
-    it('should handle errors when fetching all entities', async () => {
-      mockRepository.find.mockRejectedValue(new Error('Database error'));
+    it('should handle Error object correctly', async () => {
+      const dbError = new Error('Database connection failed');
+      mockRepository.find.mockRejectedValue(dbError);
 
       await expect(sellRepository.getAllEntities()).rejects.toThrow(
         'Error fetching all entities',
       );
 
-      expect(logger.error).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(
+        '❌ [GenericRepository] Error fetching all entities:',
+        { error: dbError },
+      );
+    });
+
+    it('should handle non-Error object gracefully', async () => {
+      const plainError = { unexpected: 'error' }; // Plain object as error
+      mockRepository.find.mockRejectedValue(plainError);
+
+      await expect(sellRepository.getAllEntities()).rejects.toThrow(
+        'Error fetching all entities',
+      );
+
+      expect(logger.error).toHaveBeenCalledWith(
+        '❌ [GenericRepository] Error fetching all entities:',
+        { error: plainError },
+      );
+    });
+
+    it('should handle unexpected error types gracefully', async () => {
+      const unexpectedError = 404; // Invalid error type
+      mockRepository.find.mockRejectedValue(unexpectedError);
+
+      await expect(sellRepository.getAllEntities()).rejects.toThrow(
+        'Error fetching all entities',
+      );
+
+      expect(logger.error).toHaveBeenCalledWith(
+        '❌ [GenericRepository] Error fetching all entities:',
+        { error: unexpectedError },
+      );
     });
   });
 
