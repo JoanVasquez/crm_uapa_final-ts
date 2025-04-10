@@ -83,3 +83,44 @@ Make sure you have AWS credentials set up if testing AWS functionality locally:
 ```bash
 aws configure
 ```
+
+### Architecture Overview
+Here's a high-level overview of the system architecture:
+
+![System Architecture](./architecture_diagram.png)
+
+
+### Class Diagram
+Below is the class structure represented for the application:
+
+![Class Diagram](./class_diagram.png)
+
+
+### Component Overview
+This diagram explains the major components of the application:
+
+![Component Diagram](./component_diagram.png)
+
+
+### Database Entity Diagram
+Entity relationships in the database are outlined below:
+
+![Entity Diagram](./entity_diagram.png)
+
+
+### HTTP Interactions
+The following diagram shows typical HTTP request/response flows:
+
+![HTTP Diagram](./http_diagram.png)
+
+
+### Sequence Diagram
+Authentication and other flows are depicted below:
+
+![Sequence Diagram](./sequence_diagram.png)
+
+
+### Use Case Diagram
+Here’s a summary of system use cases:
+
+![Use Case Diagram](./usecase_diagram.png)
